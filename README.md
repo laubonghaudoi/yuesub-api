@@ -18,7 +18,7 @@ All model are exporting as ONNX format.
 
 1. SenseVoice: iic/SenseVoiceSmall(on ModelScope)
 2. VAD: iic/speech_fsmn_vad_zh-cn-16k-common-pytorch(on ModelScope)
-3. Bert: indiejoseph/bert-base-cantonese
+3. Bert: hon9kon9ize/bert-large-cantonese
 
 ## Usage
 
