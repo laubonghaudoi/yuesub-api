@@ -13,7 +13,10 @@ from onnxruntime import GraphOptimizationLevel, InferenceSession, SessionOptions
 from pysrt import SubRipFile
 from pysrt import SubRipItem
 from pysrt import SubRipTime
+from tqdm.auto import tqdm
+import logging
 
+logger = logging.getLogger(__name__)
 
 asr_model = SenseVoiceSmall(
     './models/iic/SenseVoiceSmall', batch_size=1, quantize=True)
@@ -235,6 +238,9 @@ def corrector(text: str, char_dict: dict, lm_model: LanguageModel) -> str:
     text = text.strip()
     char_candidates = []
 
+    if text == '':
+        return text
+
     for char in text:
         if char in char_dict:
             char_candidates.append(char_dict[char])
@@ -253,6 +259,9 @@ def corrector(text: str, char_dict: dict, lm_model: LanguageModel) -> str:
                 for t in text_candidates:
                     new_candidates.append(t + c)
             text_candidates = new_candidates
+
+    if len(text_candidates) == 0:
+        return text
 
     # get score of each char with kenlm
     scores = []
@@ -275,10 +284,12 @@ def transcribe(audio_file: str) -> List['TranscribeResult']:
     speech_lengths = len(speech)
     results = []
 
+    logger.info("Number of segments: %d", n)
+
     if not n:
         return []
 
-    for j, _ in enumerate(range(0, n)):
+    for j, _ in tqdm(enumerate(range(n)), total=n, desc="Transcribing"):
         speech_j, speech_lengths_j = slice_padding_audio_samples(
             speech, speech_lengths, [[vadsegments[j]]]
         )
@@ -298,7 +309,7 @@ def transcribe(audio_file: str) -> List['TranscribeResult']:
         )
 
     # convert to Traditional Chinese
-    for result in results:
+    for result in tqdm(results, total=len(results), desc="Converting to Traditional Chinese"):
         result.text = corrector(result.text, char_dict, bert_model)
 
     return results

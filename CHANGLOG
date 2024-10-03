@@ -1,0 +1,8 @@
+### [1.0.1] - 2024-10-03
+
+Refactor utils.py, and add CLI script
+
+- Refactor utils.py to add tqdm and logging imports, and add logger
+- Refactor corrector function in utils.py to handle empty text and no candidates
+- Refactor transcribe function in utils.py to add logging and tqdm progress bars
+- Add CLI script cli.py for transcribing audio files and saving results to output directory
