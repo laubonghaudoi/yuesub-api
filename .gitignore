@@ -1,5 +1,5 @@
 models
-!models/denosier.onnx
+!models/denoiser.onnx
 .venv
 __pycache__
 .DS_Store
