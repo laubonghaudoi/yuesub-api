@@ -17,18 +17,22 @@ def export_vad_onnx(model_name):
     if os.path.exists("models/{}".format(model_name)):
         return
 
-    Fsmn_vad('iic/speech_fsmn_vad_zh-cn-16k-common-pytorch',
-             batch_size=1, quantize=True, cache_dir="models")
+    Fsmn_vad(
+        "iic/speech_fsmn_vad_zh-cn-16k-common-pytorch",
+        batch_size=1,
+        quantize=True,
+        cache_dir="models",
+    )
 
 
 def get_dummy_input(seq_length=512):
-    input_ids = torch.tensor(
-        [[i for i in range(seq_length)]], dtype=torch.long)
-    attention_mask = torch.tensor(
-        [[1 for i in range(seq_length)]], dtype=torch.long)
+    input_ids = torch.tensor([[i for i in range(seq_length)]], dtype=torch.long)
+    attention_mask = torch.tensor([[1 for i in range(seq_length)]], dtype=torch.long)
     token_type_ids = torch.tensor(
-        [[0 for i in range(int(seq_length / 2))] +
-         [1 for i in range(seq_length - int(seq_length / 2))]],
+        [
+            [0 for i in range(int(seq_length / 2))]
+            + [1 for i in range(seq_length - int(seq_length / 2))]
+        ],
         dtype=torch.long,
     )
     return input_ids, attention_mask, token_type_ids
@@ -59,19 +63,19 @@ def export_bert_onnx(model_name):
             # verbose=True,
             opset_version=16,
             do_constant_folding=True,
-            input_names=['input_ids', 'attention_mask', 'token_type_ids'],
-            output_names=['output'],
+            input_names=["input_ids", "attention_mask", "token_type_ids"],
+            output_names=["output"],
             dynamic_axes={
-                'input_ids': {0: 'batch', 1: 'seq_len'},
-                'attention_mask': {0: 'batch', 1: 'seq_len'},
-                'token_type_ids': {0: 'batch', 1: 'seq_len'},
-                'output': {0: 'batch'},
+                "input_ids": {0: "batch", 1: "seq_len"},
+                "attention_mask": {0: "batch", 1: "seq_len"},
+                "token_type_ids": {0: "batch", 1: "seq_len"},
+                "output": {0: "batch"},
             },
         )
     quantize_dynamic(
         onnx_path,
         onnx_path,
-        op_types_to_quantize=['MatMul'],
+        op_types_to_quantize=["MatMul"],
         weight_type=QuantType.QUInt8,
     )
 

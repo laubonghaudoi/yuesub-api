@@ -6,5 +6,9 @@ funasr_onnx==0.4.1
 pytube==15.0.0
 datasets
 flask
+librosa
 modelscope==1.18.1
 pysrt==1.1.2
+onnxruntime==1.19.2
+jieba==0.42.1
+resample==0.4.3

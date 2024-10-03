@@ -5,11 +5,18 @@ from torchaudio.pipelines import MMS_FA as bundle
 import librosa
 import numpy as np
 import tempfile
+from resampy.core import resample
 import torch
 from typing import List, Union, Literal
 from transformers import BertTokenizerFast
 from dataclasses import dataclass
-from onnxruntime import GraphOptimizationLevel, InferenceSession, SessionOptions, get_all_providers
+from denoiser import denoiser
+from onnxruntime import (
+    GraphOptimizationLevel,
+    InferenceSession,
+    SessionOptions,
+    get_all_providers,
+)
 from pysrt import SubRipFile
 from pysrt import SubRipItem
 from pysrt import SubRipTime
@@ -18,53 +25,62 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-asr_model = SenseVoiceSmall(
-    './models/iic/SenseVoiceSmall', batch_size=1, quantize=True)
+asr_model = SenseVoiceSmall("./models/iic/SenseVoiceSmall", batch_size=1, quantize=True)
 vad_model = Fsmn_vad_online(
-    './models/iic/speech_fsmn_vad_zh-cn-16k-common-pytorch', batch_size=1, quantize=True)
+    "./models/iic/speech_fsmn_vad_zh-cn-16k-common-pytorch", batch_size=1, quantize=True
+)
 
-LABELS = [asr_model.tokenizer.sp.IdToPiece(
-    i) for i in range(asr_model.tokenizer.sp.piece_size())]
-special_labels = [label for label in LABELS if label.startswith(
-    "<|") and label.endswith("|>")]
+LABELS = [
+    asr_model.tokenizer.sp.IdToPiece(i)
+    for i in range(asr_model.tokenizer.sp.piece_size())
+]
+special_labels = [
+    label for label in LABELS if label.startswith("<|") and label.endswith("|>")
+]
 punct_labels = "?!。，；？！"
-special_token_ids = [asr_model.tokenizer.sp.PieceToId(
-    i) for i in ["<s>", "</s>", "<unk>", "<pad>"] + special_labels]
+special_token_ids = [
+    asr_model.tokenizer.sp.PieceToId(i)
+    for i in ["<s>", "</s>", "<unk>", "<pad>"] + special_labels
+]
 aligner = bundle.get_aligner()
 SAMPLE_RATE = 16000
 
 
-def load_dict(dict_file='./assets/STCharacters.txt'):
-    with open(dict_file, 'r', encoding='utf-8') as f:
+def load_dict(dict_file="./assets/STCharacters.txt"):
+    with open(dict_file, "r", encoding="utf-8") as f:
         lines = f.readlines()
     char_dict = {}
     for line in lines:
         line = line.strip()
         if line:
-            sc, tc = line.split('\t')
-            tc = tc.split(' ')
+            sc, tc = line.split("\t")
+            tc = tc.split(" ")
             char_dict[sc] = tc
     # patch for 晒, 咁
-    char_dict['晒'] = ['晒', '曬']
-    char_dict['咁'] = ['咁', '噉']
+    char_dict["晒"] = ["晒", "曬"]
+    char_dict["咁"] = ["咁", "噉"]
 
     return char_dict
 
 
 def download_youtube_audio(video_id: str) -> str:
-    urls = 'https://www.youtube.com/watch?v={}'.format(video_id)
+    urls = "https://www.youtube.com/watch?v={}".format(video_id)
 
     try:
         # https://github.com/JuanBindez/pytubefix/issues/242#issuecomment-2369067929
-        vid = YouTube(urls, 'MWEB')
+        vid = YouTube(urls, "MWEB")
 
         if vid.title is None:
             return None
 
         audio_download = vid.streams.get_audio_only()
         audio_download.download(
-            mp3=True, filename=video_id, output_path=tempfile.gettempdir(), skip_existing=True)
-        audio_file = tempfile.gettempdir() + '/' + video_id + '.mp3'
+            mp3=True,
+            filename=video_id,
+            output_path=tempfile.gettempdir(),
+            skip_existing=True,
+        )
+        audio_file = tempfile.gettempdir() + "/" + video_id + ".mp3"
 
         return audio_file
 
@@ -100,13 +116,17 @@ class TranscribeResult:
         return str(self)
 
 
-def asr(wav_content: Union[str, np.ndarray, List[str]], language="yue", textnorm: Union[Literal["withitn", "woitn"]] = "withitn") -> List['TranscribeResult']:
+def asr(
+    wav_content: Union[str, np.ndarray, List[str]],
+    language="yue",
+    textnorm: Union[Literal["withitn", "woitn"]] = "withitn",
+) -> List["TranscribeResult"]:
     language_input = language
     textnorm_input = textnorm
-    language_list, textnorm_list = asr_model.read_tags(
-        language_input, textnorm_input)
+    language_list, textnorm_list = asr_model.read_tags(language_input, textnorm_input)
     waveform = asr_model.load_data(
-        wav_content, asr_model.frontend.opts.frame_opts.samp_freq)
+        wav_content, asr_model.frontend.opts.frame_opts.samp_freq
+    )
     feats, feats_len = asr_model.extract_feat(waveform)
     _language_list = language_list[0:1]
     _textnorm_list = textnorm_list[0:1]
@@ -142,7 +162,7 @@ def asr(wav_content: Union[str, np.ndarray, List[str]], language="yue", textnorm
             TranscribeResult(
                 text=label,
                 start_time=token_span.start * ratio,
-                end_time=token_span.end * ratio
+                end_time=token_span.end * ratio,
             )
         )
 
@@ -156,9 +176,10 @@ def asr(wav_content: Union[str, np.ndarray, List[str]], language="yue", textnorm
             results.append(
                 TranscribeResult(
                     text="".join(
-                        [segment.text for segment in segments[start_idx:end_idx]]),
+                        [segment.text for segment in segments[start_idx:end_idx]]
+                    ),
                     start_time=segments[start_idx].start_time,
-                    end_time=segments[end_idx].end_time
+                    end_time=segments[end_idx].end_time,
                 )
             )
             start_idx = end_idx + 1
@@ -179,7 +200,8 @@ class LanguageModel:
 
 def create_model_for_provider(model_path: str, provider: str) -> InferenceSession:
 
-    assert provider in get_all_providers(
+    assert (
+        provider in get_all_providers()
     ), f"provider {provider} not found, {get_all_providers()}"
 
     # Few properties that might have an impact on performances (provided by MS)
@@ -201,23 +223,22 @@ class OnnxInferenceResult:
 
 
 class BertModel(LanguageModel):
-    def __init__(self, model_name='bert-base-chinese'):
+    def __init__(self, model_name="bert-base-chinese"):
         self.tokenizer = BertTokenizerFast.from_pretrained(model_name)
         self.model = create_model_for_provider(
-            "{}/model.onnx".format(model_name), "CPUExecutionProvider")
+            "{}/model.onnx".format(model_name), "CPUExecutionProvider"
+        )
 
     def get_loss(self, text: str) -> float:
         model_inputs = self.tokenizer(text, return_tensors="pt")
         vocab_size = len(self.tokenizer.get_vocab())
         labels = model_inputs.input_ids
-        inputs_onnx = {k: v.cpu().detach().numpy()
-                       for k, v in model_inputs.items()}
+        inputs_onnx = {k: v.cpu().detach().numpy() for k, v in model_inputs.items()}
         predictions = self.model.run(None, inputs_onnx)
         lm_logits = predictions[0]
         lm_logits = torch.from_numpy(lm_logits)
         loss_fct = torch.nn.CrossEntropyLoss()  # -100 index = padding token
-        masked_lm_loss = loss_fct(
-            lm_logits.view(-1, vocab_size), labels.view(-1))
+        masked_lm_loss = loss_fct(lm_logits.view(-1, vocab_size), labels.view(-1))
         loss = masked_lm_loss.item()
 
         return loss
@@ -231,14 +252,14 @@ class BertModel(LanguageModel):
 
 char_dict = load_dict()
 
-bert_model = BertModel('./models/hon9kon9ize/bert-large-cantonese')
+bert_model = BertModel("./models/hon9kon9ize/bert-large-cantonese")
 
 
 def corrector(text: str, char_dict: dict, lm_model: LanguageModel) -> str:
     text = text.strip()
     char_candidates = []
 
-    if text == '':
+    if text == "":
         return text
 
     for char in text:
@@ -270,14 +291,20 @@ def corrector(text: str, char_dict: dict, lm_model: LanguageModel) -> str:
         scores.append(lm_model.perplexity(t))
 
     # sort by score
-    text_candidates = [x for _, x in sorted(
-        zip(scores, text_candidates), key=lambda pair: pair[0])]
+    text_candidates = [
+        x for _, x in sorted(zip(scores, text_candidates), key=lambda pair: pair[0])
+    ]
 
     return text_candidates[0]
 
 
-def transcribe(audio_file: str) -> List['TranscribeResult']:
-    speech = librosa.load(audio_file, sr=16000)[0]
+def transcribe(audio_file: str) -> List["TranscribeResult"]:
+    speech, sr = librosa.load(audio_file)
+    speech, new_sr = denoiser(speech, sr)
+
+    if new_sr != 16_000:
+        speech = resample(speech, new_sr, 16_000, filter="kaiser_best", parallel=True)
+
     res = vad_model(speech)
     vadsegments = res[0]
     n = len(vadsegments)
@@ -294,7 +321,7 @@ def transcribe(audio_file: str) -> List['TranscribeResult']:
             speech, speech_lengths, [[vadsegments[j]]]
         )
         stt_results = asr(speech_j[0])
-        timestamp_offset = ((vadsegments[j][0] * 16) / 16000) - 0.1
+        timestamp_offset = ((vadsegments[j][0] * 16) / 16_000) - 0.1
 
         if len(stt_results) < 1:
             continue
@@ -304,18 +331,18 @@ def transcribe(audio_file: str) -> List['TranscribeResult']:
             result.start_time += timestamp_offset
             result.end_time += timestamp_offset
 
-        results.extend(
-            stt_results
-        )
+        results.extend(stt_results)
 
     # convert to Traditional Chinese
-    for result in tqdm(results, total=len(results), desc="Converting to Traditional Chinese"):
+    for result in tqdm(
+        results, total=len(results), desc="Converting to Traditional Chinese"
+    ):
         result.text = corrector(result.text, char_dict, bert_model)
 
     return results
 
 
-def to_srt(results: List['TranscribeResult']) -> str:
+def to_srt(results: List["TranscribeResult"]) -> str:
     srt = SubRipFile()
 
     for i, t in enumerate(results):
@@ -324,10 +351,10 @@ def to_srt(results: List['TranscribeResult']) -> str:
         item = SubRipItem(index=i, start=start, end=end, text=t.text)
         srt.append(item)
 
-    temp_file = tempfile.gettempdir() + '/output.srt'
+    temp_file = tempfile.gettempdir() + "/output.srt"
     srt.save(temp_file)
 
-    with open(temp_file, 'r', encoding='utf-8') as f:
+    with open(temp_file, "r", encoding="utf-8") as f:
         srt_text = f.read()
 
     os.remove(temp_file)
