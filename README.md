@@ -28,7 +28,13 @@ All model are exporting as ONNX format.
 $ python export_onnx.py
 ```
 
-2. Run the service
+2. run the cli
+
+```bash
+$ python cli.py your_audio.mp3 --output-dir output
+```
+
+3. or run the web API service
 
 ```bash
 $ python app.py
