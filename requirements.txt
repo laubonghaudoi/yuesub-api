@@ -11,4 +11,4 @@ modelscope==1.18.1
 pysrt==1.1.2
 onnxruntime==1.19.2
 jieba==0.42.1
-resample==0.4.3
+resampy==0.4.3
