@@ -1,4 +1,4 @@
-models
+models/*
 !models/denoiser.onnx
 .venv
 __pycache__
