@@ -20,6 +20,12 @@ All model are exporting as ONNX format.
 2. VAD: iic/speech_fsmn_vad_zh-cn-16k-common-pytorch(on ModelScope)
 3. Bert: hon9kon9ize/bert-large-cantonese
 
+## Prerequisites
+
+```bash
+pip install -r requirements.txt
+```
+
 ## Usage
 
 1. export models to ONNX format, it would download the model weights and export to ONNX format in models folder
