@@ -1,4 +1,6 @@
 import os
+import re
+import psutil
 from pytubefix import YouTube
 from funasr_onnx import Fsmn_vad_online, SenseVoiceSmall
 from torchaudio.pipelines import MMS_FA as bundle
@@ -37,7 +39,7 @@ LABELS = [
 special_labels = [
     label for label in LABELS if label.startswith("<|") and label.endswith("|>")
 ]
-punct_labels = "?!。，；？！"
+
 special_token_ids = [
     asr_model.tokenizer.sp.PieceToId(i)
     for i in ["<s>", "</s>", "<unk>", "<pad>"] + special_labels
@@ -46,21 +48,63 @@ aligner = bundle.get_aligner()
 SAMPLE_RATE = 16000
 
 
-def load_dict(dict_file="./assets/STCharacters.txt"):
-    with open(dict_file, "r", encoding="utf-8") as f:
-        lines = f.readlines()
-    char_dict = {}
-    for line in lines:
-        line = line.strip()
-        if line:
-            sc, tc = line.split("\t")
-            tc = tc.split(" ")
-            char_dict[sc] = tc
-    # patch for 晒, 咁
-    char_dict["晒"] = ["晒", "曬"]
-    char_dict["咁"] = ["咁", "噉"]
+def load_dict(
+    t2s_dict_file="./data/STCharacters.txt",
+    jyutping_dict_file="./data/jyut6ping3.chars.dict.tsv",
+    chars_freq_dict_file="./data/chars_freq.tsv",
+):
+    char_jyutping_dict = {}
+    jyutping_char_dict = {}
+    chars_freq = {}
+    t2s_char_dict = {}
 
-    return char_dict
+    with open(chars_freq_dict_file, "r") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                char, freq = line.split("\t")
+                chars_freq[char] = float(freq)
+
+    with open(jyutping_dict_file, "r") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                try:
+                    char, jyutping = line.split("\t")
+
+                    if char in char_jyutping_dict:
+                        char_jyutping_dict[char].append(jyutping)
+                    else:
+                        char_jyutping_dict[char] = [jyutping]
+
+                    if jyutping in jyutping_char_dict:
+                        jyutping_char_dict[jyutping].append(char)
+                    else:
+                        jyutping_char_dict[jyutping] = [char]
+                except:
+                    print(line)
+
+    # sort jyutping_char_dict by char freq
+    jyutping_char_dict = {
+        k: sorted(
+            v, key=lambda x: chars_freq[x] if x in chars_freq else 0, reverse=True
+        )
+        for k, v in jyutping_char_dict.items()
+    }
+
+    with open(t2s_dict_file, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                sc, tc = line.split("\t")
+                tc = tc.split(" ")
+                t2s_char_dict[sc] = tc
+    # patch for 晒, 咁
+    t2s_char_dict["晒"] = ["晒", "曬"]
+    t2s_char_dict["咁"] = ["咁", "噉"]
+    t2s_char_dict["旧"] = t2s_char_dict["旧"] + ["嚿"]
+
+    return t2s_char_dict, char_jyutping_dict, jyutping_char_dict, chars_freq
 
 
 def download_youtube_audio(video_id: str) -> str:
@@ -120,6 +164,7 @@ def asr(
     wav_content: Union[str, np.ndarray, List[str]],
     language="yue",
     textnorm: Union[Literal["withitn", "woitn"]] = "withitn",
+    with_punct=False,
 ) -> List["TranscribeResult"]:
     language_input = language
     textnorm_input = textnorm
@@ -133,7 +178,7 @@ def asr(
     segments = []
     results = []
 
-    ctc_logits, encoder_out_lens = asr_model.infer(
+    ctc_logits, _ = asr_model.infer(
         feats,
         feats_len,
         np.array(_language_list, dtype=np.int32),
@@ -151,6 +196,32 @@ def asr(
     mask = yseq != asr_model.blank_id
     preds = yseq[mask]
     token_spans = aligner(ctc_logits[0], preds.unsqueeze(0))[0]
+    results = _process_segments(token_spans, ratio, with_punct)
+
+    return results
+
+
+def _process_segments(
+    token_spans,
+    ratio,
+    with_punct,
+    punct_labels=",?!。，；？！",
+    sep_labels="?!。；？！",
+):
+    """
+    Processes token spans into segments with optional punctuation handling.
+
+    Args:
+        token_spans (list): A list of token spans, where each span contains a token, start time, and end time.
+        ratio (float): A ratio to adjust the start and end times of the segments.
+        with_punct (bool): A flag indicating whether to include punctuation in the segments.
+        punct_labels (str, optional): A string of punctuation characters to consider. Defaults to "?!。，；？！".
+        sep_labels (str, optional): A string of separator characters to consider. Defaults to "?!。；？
+
+    Returns:
+        list: A list of TranscribeResult objects, each containing text, start time, and end time.
+    """
+    segments = []
 
     for token_span in token_spans:
         label = asr_model.tokenizer.sp.IdToPiece(token_span.token)
@@ -166,18 +237,29 @@ def asr(
             )
         )
 
+    results = []
     start_idx = 0
     end_idx = 1
 
     while end_idx < len(segments):
         current_segment = segments[end_idx]
 
-        if current_segment.text in punct_labels:
+        if current_segment.text in sep_labels:
+            curr_end_idx = end_idx
+
+            if with_punct:
+                curr_end_idx += 1
+
+            text = "".join(
+                [segment.text for segment in segments[start_idx:curr_end_idx]]
+            )
+
+            if not with_punct:
+                text = re.sub(f"[{punct_labels}]", " ", text)
+
             results.append(
                 TranscribeResult(
-                    text="".join(
-                        [segment.text for segment in segments[start_idx:end_idx]]
-                    ),
+                    text=text,
                     start_time=segments[start_idx].start_time,
                     end_time=segments[end_idx].end_time,
                 )
@@ -206,7 +288,7 @@ def create_model_for_provider(model_path: str, provider: str) -> InferenceSessio
 
     # Few properties that might have an impact on performances (provided by MS)
     options = SessionOptions()
-    options.intra_op_num_threads = 1
+    options.intra_op_num_threads = psutil.cpu_count(logical=True) - 1
     options.graph_optimization_level = GraphOptimizationLevel.ORT_ENABLE_ALL
 
     # Load the model as a graph and prepare the CPU backend
@@ -250,12 +332,12 @@ class BertModel(LanguageModel):
         return perplexity.item()
 
 
-char_dict = load_dict()
+t2s_char_dict, char_jyutping_dict, jyutping_char_dict, chars_freq = load_dict()
 
 bert_model = BertModel("./models/hon9kon9ize/bert-large-cantonese")
 
 
-def corrector(text: str, char_dict: dict, lm_model: LanguageModel) -> str:
+def corrector(text: str, t2s_char_dict: dict, lm_model: LanguageModel) -> str:
     text = text.strip()
     char_candidates = []
 
@@ -263,8 +345,8 @@ def corrector(text: str, char_dict: dict, lm_model: LanguageModel) -> str:
         return text
 
     for char in text:
-        if char in char_dict:
-            char_candidates.append(char_dict[char])
+        if char in t2s_char_dict:
+            char_candidates.append(t2s_char_dict[char])
         else:
             char_candidates.append([char])
 
@@ -305,6 +387,8 @@ def transcribe(audio_file: str) -> List["TranscribeResult"]:
     if new_sr != 16_000:
         speech = resample(speech, new_sr, 16_000, filter="kaiser_best", parallel=True)
 
+    logger.info("Segmenting speech")
+
     res = vad_model(speech)
     vadsegments = res[0]
     n = len(vadsegments)
@@ -337,7 +421,7 @@ def transcribe(audio_file: str) -> List["TranscribeResult"]:
     for result in tqdm(
         results, total=len(results), desc="Converting to Traditional Chinese"
     ):
-        result.text = corrector(result.text, char_dict, bert_model)
+        result.text = corrector(result.text, t2s_char_dict, bert_model)
 
     return results
 

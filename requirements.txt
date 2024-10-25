@@ -12,3 +12,4 @@ pysrt==1.1.2
 onnxruntime==1.19.2
 jieba==0.42.1
 resampy==0.4.3
+psutil

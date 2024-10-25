@@ -6,3 +6,11 @@ Refactor utils.py, and add CLI script
 - Refactor corrector function in utils.py to handle empty text and no candidates
 - Refactor transcribe function in utils.py to add logging and tqdm progress bars
 - Add CLI script cli.py for transcribing audio files and saving results to output directory
+
+### [1.0.2] - 2024-10-09
+
+Add Cantonese character frequency dictionary, and Jyutping dictionary for generate N-Best list of similar sound while decoding
+
+### [1.0.3] - 2024-10-32
+
+Change remove punctuation as a optional parameter

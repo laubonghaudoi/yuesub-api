@@ -34,6 +34,12 @@ $ python export_onnx.py
 $ python cli.py your_audio.mp3 --output-dir output
 ```
 
+or in batch
+
+```bash
+for file in $(ls *.mp3); do python cli.py $file --output-dir output; done
+```
+
 3. or run the web API service
 
 ```bash
