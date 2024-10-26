@@ -2,12 +2,13 @@ import logging
 import os
 import re
 import tempfile
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import List, Literal, Union
-import pandas as pd
 
 import librosa
 import numpy as np
+import pandas as pd
 import psutil
 import torch
 from funasr_onnx import Fsmn_vad_online, SenseVoiceSmall
@@ -54,28 +55,40 @@ def load_dict(
     jyutping_dict_file="./data/jyut6ping3.chars.dict.tsv",
     chars_freq_dict_file="./data/chars_freq.tsv",
 ):
-    """Load dictionary files using pandas for better performance."""
-    import pandas as pd
-    from collections import defaultdict
+    """Load Jyutping dictionary, character frequency dictionary, and traditional to simplified mapping.
+
+    Args:
+        t2s_dict_file (str): Path to the traditional to simplified mapping file.
+        jyutping_dict_file (str): Path to the Jyutping dictionary file.
+        chars_freq_dict_file (str): Path to the character frequency database file.
+
+    Returns:
+        tuple:
+            traditional to simplified mapping,
+            character to Jyutping dictionary,
+            Jyutping to character dictionary
+            character frequency dictionary.
+
+    """
 
     # Load character frequencies
-    chars_freq_df = pd.read_csv(chars_freq_dict_file, sep='\t', names=['char', 'freq'])
+    chars_freq_df = pd.read_csv(chars_freq_dict_file, sep="\t", names=["char", "freq"])
     chars_freq = dict(zip(chars_freq_df.char, chars_freq_df.freq))
 
     # Load jyutping dictionary
-    jyutping_df = pd.read_csv(jyutping_dict_file, sep='\t', names=['char', 'jyutping'])
-    
+    jyutping_df = pd.read_csv(jyutping_dict_file, sep="\t", names=["char", "jyutping"])
+
     # Create char_jyutping_dict
     char_jyutping_dict = defaultdict(list)
     for _, row in jyutping_df.iterrows():
-        char_jyutping_dict[row['char']].append(row['jyutping'])
+        char_jyutping_dict[row["char"]].append(row["jyutping"])
     char_jyutping_dict = dict(char_jyutping_dict)
 
     # Create jyutping_char_dict
     jyutping_char_dict = defaultdict(list)
     for _, row in jyutping_df.iterrows():
-        jyutping_char_dict[row['jyutping']].append(row['char'])
-    
+        jyutping_char_dict[row["jyutping"]].append(row["char"])
+
     # Sort characters by frequency
     jyutping_char_dict = {
         k: sorted(v, key=lambda x: chars_freq.get(x, 0), reverse=True)
@@ -84,9 +97,9 @@ def load_dict(
 
     # Load traditional to simplified mapping
     t2s_char_dict = {}
-    t2s_df = pd.read_csv(t2s_dict_file, sep='\t', names=['sc', 'tc'], encoding='utf-8')
+    t2s_df = pd.read_csv(t2s_dict_file, sep="\t", names=["sc", "tc"], encoding="utf-8")
     for _, row in t2s_df.iterrows():
-        t2s_char_dict[row['sc']] = row['tc'].split()
+        t2s_char_dict[row["sc"]] = row["tc"].split()
 
     # Add patches
     t2s_char_dict["晒"] = ["晒", "曬"]
@@ -97,6 +110,15 @@ def load_dict(
 
 
 def download_youtube_audio(video_id: str) -> str:
+    """
+    Download audio from YouTube video.
+
+    Args:
+        video_id (str): YouTube video ID.
+
+    Returns:
+        str: Path to the downloaded audio file.
+    """
     urls = "https://www.youtube.com/watch?v={}".format(video_id)
 
     try:
@@ -123,9 +145,12 @@ def download_youtube_audio(video_id: str) -> str:
 
 
 def slice_padding_audio_samples(speech, speech_lengths, vad_segments):
+    """
+    Slice and pad audio samples based on VAD segments.
+    """
     speech_list = []
     speech_lengths_list = []
-    for i, segment in enumerate(vad_segments):
+    for _, segment in enumerate(vad_segments):
         bed_idx = int(segment[0][0] * 16)
         end_idx = min(int(segment[0][1] * 16), speech_lengths)
         speech_i = speech[bed_idx:end_idx]
@@ -137,6 +162,10 @@ def slice_padding_audio_samples(speech, speech_lengths, vad_segments):
 
 
 class TranscribeResult:
+    """
+    Each TranscribeResult object represents one SRT line.
+    """
+
     def __init__(self, text: str, start_time: float, end_time: float):
         self.text = text
         self.start_time = start_time
@@ -155,6 +184,18 @@ def asr(
     textnorm: Union[Literal["withitn", "woitn"]] = "withitn",
     with_punct=False,
 ) -> List["TranscribeResult"]:
+    """
+    Perform ASR on the given audio content. Returns a list of TranscribeResult objects which represent SRT lines.
+
+    Args:
+        wav_content (Union[str, np.ndarray, List[str]]): Audio content to transcribe.
+        language (str, optional): Language code. Defaults to "yue".
+        textnorm (Union[Literal["withitn", "woitn"]], optional): Text normalization. Defaults to "withitn".
+        with_punct (bool, optional): Include punctuation. Defaults to False.
+
+    Returns:
+        List[TranscribeResult]: A list of TranscribeResult objects.
+    """
     language_input = language
     textnorm_input = textnorm
     language_list, textnorm_list = asr_model.read_tags(language_input, textnorm_input)
