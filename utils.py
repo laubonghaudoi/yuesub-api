@@ -4,6 +4,7 @@ import re
 import tempfile
 from dataclasses import dataclass
 from typing import List, Literal, Union
+import pandas as pd
 
 import librosa
 import numpy as np
@@ -53,53 +54,41 @@ def load_dict(
     jyutping_dict_file="./data/jyut6ping3.chars.dict.tsv",
     chars_freq_dict_file="./data/chars_freq.tsv",
 ):
-    char_jyutping_dict = {}
-    jyutping_char_dict = {}
-    chars_freq = {}
-    t2s_char_dict = {}
+    """Load dictionary files using pandas for better performance."""
+    import pandas as pd
+    from collections import defaultdict
 
-    with open(chars_freq_dict_file, "r") as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                char, freq = line.split("\t")
-                chars_freq[char] = float(freq)
+    # Load character frequencies
+    chars_freq_df = pd.read_csv(chars_freq_dict_file, sep='\t', names=['char', 'freq'])
+    chars_freq = dict(zip(chars_freq_df.char, chars_freq_df.freq))
 
-    with open(jyutping_dict_file, "r") as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                try:
-                    char, jyutping = line.split("\t")
+    # Load jyutping dictionary
+    jyutping_df = pd.read_csv(jyutping_dict_file, sep='\t', names=['char', 'jyutping'])
+    
+    # Create char_jyutping_dict
+    char_jyutping_dict = defaultdict(list)
+    for _, row in jyutping_df.iterrows():
+        char_jyutping_dict[row['char']].append(row['jyutping'])
+    char_jyutping_dict = dict(char_jyutping_dict)
 
-                    if char in char_jyutping_dict:
-                        char_jyutping_dict[char].append(jyutping)
-                    else:
-                        char_jyutping_dict[char] = [jyutping]
-
-                    if jyutping in jyutping_char_dict:
-                        jyutping_char_dict[jyutping].append(char)
-                    else:
-                        jyutping_char_dict[jyutping] = [char]
-                except:
-                    print(line)
-
-    # sort jyutping_char_dict by char freq
+    # Create jyutping_char_dict
+    jyutping_char_dict = defaultdict(list)
+    for _, row in jyutping_df.iterrows():
+        jyutping_char_dict[row['jyutping']].append(row['char'])
+    
+    # Sort characters by frequency
     jyutping_char_dict = {
-        k: sorted(
-            v, key=lambda x: chars_freq[x] if x in chars_freq else 0, reverse=True
-        )
+        k: sorted(v, key=lambda x: chars_freq.get(x, 0), reverse=True)
         for k, v in jyutping_char_dict.items()
     }
 
-    with open(t2s_dict_file, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                sc, tc = line.split("\t")
-                tc = tc.split(" ")
-                t2s_char_dict[sc] = tc
-    # patch for 晒, 咁
+    # Load traditional to simplified mapping
+    t2s_char_dict = {}
+    t2s_df = pd.read_csv(t2s_dict_file, sep='\t', names=['sc', 'tc'], encoding='utf-8')
+    for _, row in t2s_df.iterrows():
+        t2s_char_dict[row['sc']] = row['tc'].split()
+
+    # Add patches
     t2s_char_dict["晒"] = ["晒", "曬"]
     t2s_char_dict["咁"] = ["咁", "噉"]
     t2s_char_dict["旧"] = t2s_char_dict["旧"] + ["嚿"]
