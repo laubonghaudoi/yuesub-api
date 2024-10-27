@@ -1,7 +1,7 @@
-from LanguageModel import LanguageModel
+from .LanguageModel import LanguageModel
 
 
-def corrector(text: str, t2s_char_dict: dict, lm_model: LanguageModel) -> str:
+def correct(text: str, t2s_char_dict: dict, lm_model: LanguageModel) -> str:
     text = text.strip()
     char_candidates = []
 

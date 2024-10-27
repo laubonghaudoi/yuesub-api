@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from transformers import BertTokenizerFast
 
-from LanguageModel import LanguageModel
+from .LanguageModel import LanguageModel
 
 
 @dataclass

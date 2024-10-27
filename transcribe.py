@@ -13,8 +13,7 @@ from resampy.core import resample
 from torchaudio.pipelines import MMS_FA as bundle
 from tqdm.auto import tqdm
 
-from corrector import corrector
-from BertModel import BertModel
+from corrector import BertModel, correct
 from denoiser import denoiser
 from TranscribeResult import TranscribeResult
 from utils import load_dict
@@ -228,7 +227,7 @@ def transcribe(audio_file: str) -> List["TranscribeResult"]:
     for result in tqdm(
         results, total=len(results), desc="Converting to Traditional Chinese"
     ):
-        result.text = corrector(result.text, t2s_char_dict, bert_model)
+        result.text = correct(result.text, t2s_char_dict, bert_model)
 
     return results
 
