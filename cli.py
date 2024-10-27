@@ -6,6 +6,8 @@ import utils
 
 logging.basicConfig(level=logging.INFO)
 
+logger = logging.getLogger(__name__)
+
 model_dirs = [
     "models/hon9kon9ize/bert-large-cantonese",
     "models/iic/SenseVoiceSmall",
@@ -27,17 +29,17 @@ def main():
     # check if all the models are downloaded
     for model_dir in model_dirs:
         if not os.path.exists(model_dir):
-            logging.error(
+            logger.error(
                 "Model not found, please run `python download_models.py` first"
             )
             return
 
-    logging.info("Transcribing %s", args.audio_file)
+    logger.info("Transcribing %s", args.audio_file)
 
     transcribe_results = utils.transcribe(args.audio_file)
 
     if len(transcribe_results) == 0:
-        logging.error("No transcriptions found")
+        logger.error("No transcriptions found")
 
     srt_text = utils.to_srt(transcribe_results)
     filename = args.audio_file.split("/")[-1].split(".")[0]
@@ -50,7 +52,7 @@ def main():
     with open(filename, "w", encoding="utf-8") as f:
         f.write(srt_text)
 
-    logging.info("Transcription saved to %s.srt", filename)
+    logger.info("Transcription saved to %s.srt", filename)
 
 
 if __name__ == "__main__":
