@@ -8,9 +8,11 @@ import librosa
 import numpy as np
 import torch
 from funasr_onnx import Fsmn_vad_online, SenseVoiceSmall
+from funasr_onnx.utils.sentencepiece_tokenizer import SentencepiecesTokenizer
 from pysrt import SubRipFile, SubRipItem, SubRipTime
 from resampy.core import resample
 from torchaudio.pipelines import MMS_FA as bundle
+import gc
 from tqdm.auto import tqdm
 
 from corrector import BertModel, corrector
@@ -19,21 +21,19 @@ from utils import load_dict
 
 logger = logging.getLogger(__name__)
 
-asr_model = SenseVoiceSmall("./models/iic/SenseVoiceSmall", batch_size=1, quantize=True)
-vad_model = Fsmn_vad_online(
-    "./models/iic/speech_fsmn_vad_zh-cn-16k-common-pytorch", batch_size=1, quantize=True
+tokenizer = SentencepiecesTokenizer(
+    bpemodel=os.path.join(
+        "./models/iic/SenseVoiceSmall", "chn_jpn_yue_eng_ko_spectok.bpe.model"
+    )
 )
 
-LABELS = [
-    asr_model.tokenizer.sp.IdToPiece(i)
-    for i in range(asr_model.tokenizer.sp.piece_size())
-]
+LABELS = [tokenizer.sp.IdToPiece(i) for i in range(tokenizer.sp.piece_size())]
 special_labels = [
     label for label in LABELS if label.startswith("<|") and label.endswith("|>")
 ]
 
 special_token_ids = [
-    asr_model.tokenizer.sp.PieceToId(i)
+    tokenizer.sp.PieceToId(i)
     for i in ["<s>", "</s>", "<unk>", "<pad>"] + special_labels
 ]
 aligner = bundle.get_aligner()
@@ -77,6 +77,9 @@ def asr(
     Returns:
         List[TranscribeResult]: A list of TranscribeResult objects.
     """
+    asr_model = SenseVoiceSmall(
+        "./models/iic/SenseVoiceSmall", batch_size=1, quantize=True
+    )
     language_input = language
     textnorm_input = textnorm
     language_list, textnorm_list = asr_model.read_tags(language_input, textnorm_input)
@@ -109,6 +112,10 @@ def asr(
     token_spans = aligner(ctc_logits[0], preds.unsqueeze(0))[0]
     results = _process_segments(token_spans, ratio, with_punct)
 
+    # release memory
+    del asr_model
+    gc.collect()
+
     return results
 
 
@@ -135,7 +142,7 @@ def _process_segments(
     segments = []
 
     for token_span in token_spans:
-        label = asr_model.tokenizer.sp.IdToPiece(token_span.token)
+        label = tokenizer.sp.IdToPiece(token_span.token)
 
         if token_span.token in special_token_ids:
             continue
@@ -199,7 +206,19 @@ def slice_padding_audio_samples(speech, speech_lengths, vad_segments):
     return speech_list, speech_lengths_list
 
 
-bert_model = BertModel("./models/hon9kon9ize/bert-large-cantonese")
+def speech_segmentation(speech, sr):
+    vad_model = Fsmn_vad_online(
+        "./models/iic/speech_fsmn_vad_zh-cn-16k-common-pytorch",
+        batch_size=1,
+        quantize=True,
+    )
+    res = vad_model(speech)
+
+    # release memory
+    del vad_model
+    gc.collect()
+
+    return res
 
 
 def transcribe(
@@ -217,7 +236,8 @@ def transcribe(
 
     logger.info("Segmenting speech...")
 
-    res = vad_model(speech)
+    res = speech_segmentation(speech, sr)
+
     vadsegments = res[0]
     n = len(vadsegments)
     speech_lengths = len(speech)
@@ -246,6 +266,8 @@ def transcribe(
         results.extend(stt_results)
 
     # convert to Traditional Chinese
+    bert_model = BertModel("./models/hon9kon9ize/bert-large-cantonese")
+
     for result in tqdm(
         results, total=len(results), desc="Converting to Traditional Chinese"
     ):
