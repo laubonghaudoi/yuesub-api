@@ -2,6 +2,7 @@ import os
 import argparse
 import logging
 from pathlib import Path
+import transcribe
 
 logging.basicConfig(level=logging.INFO)
 
@@ -37,12 +38,12 @@ def main():
 
     logger.info("Transcribing %s", args.audio_file)
 
-    transcribe_results = utils.transcribe(args.audio_file)
+    transcribe_results = transcribe.transcribe(args.audio_file)
 
     if len(transcribe_results) == 0:
         logger.error("No transcriptions found")
 
-    srt_text = utils.to_srt(transcribe_results)
+    srt_text = transcribe.to_srt(transcribe_results)
     filename = args.audio_file.split("/")[-1].split(".")[0]
     output_dir = Path(args.output_dir)
     filename = output_dir.joinpath(f"{filename}.srt")

@@ -15,3 +15,5 @@ resampy==0.4.3
 psutil
 pytubefix
 funasr
+pytest
+funasr
