@@ -1,12 +1,11 @@
-import os
 import argparse
 import logging
+import os
 from pathlib import Path
-import transcribe
+
+from transcribe import to_srt, transcribe
 
 logging.basicConfig(level=logging.INFO)
-
-import utils
 
 logger = logging.getLogger(__file__)
 
@@ -41,14 +40,16 @@ def main():
 
     logger.info("Transcribing %s", args.audio_file)
 
-    transcribe_results = transcribe.transcribe(
+    transcribe_results = transcribe(
         args.audio_file, 16_000, use_denoiser=args.denoise, with_punct=args.punct
     )
 
     if len(transcribe_results) == 0:
         logger.error("No transcriptions found")
 
-    srt_text = transcribe.to_srt(transcribe_results)
+    srt_text = to_srt(transcribe_results)
+
+    # Save transcription to srt file
     filename = args.audio_file.split("/")[-1].split(".")[0]
     output_dir = Path(args.output_dir)
     filename = output_dir.joinpath(f"{filename}.srt")
