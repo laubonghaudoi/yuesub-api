@@ -24,6 +24,9 @@ def main():
     parser.add_argument(
         "--punct", help="Whether to keep punctuation", action="store_true"
     )
+    parser.add_argument(
+        "--denoise", help="Whether to denoise the audio", action="store_true"
+    )
     parser.add_argument("--output-dir", type=str, default="output")
     args = parser.parse_args()
 
@@ -37,7 +40,9 @@ def main():
 
     logger.info("Transcribing %s", args.audio_file)
 
-    transcribe_results = utils.transcribe(args.audio_file)
+    transcribe_results = utils.transcribe(
+        args.audio_file, 16_000, use_denoiser=args.denoise, with_punct=args.punct
+    )
 
     if len(transcribe_results) == 0:
         logger.error("No transcriptions found")

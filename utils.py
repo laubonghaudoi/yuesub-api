@@ -380,15 +380,18 @@ def corrector(text: str, t2s_char_dict: dict, lm_model: LanguageModel) -> str:
     return text_candidates[0]
 
 
-def transcribe(audio_file: str) -> List["TranscribeResult"]:
-    speech, sr = librosa.load(audio_file)
+def transcribe(
+    audio_file: str, sr=16000, use_denoiser=False, with_punct=False
+) -> List["TranscribeResult"]:
+    speech, sr = librosa.load(audio_file, sr=sr)
 
-    logger.info("Denosing speech")
+    if use_denoiser:
+        logger.info("Denosing speech...")
 
-    speech, new_sr = denoiser(speech, sr)
+        speech, _ = denoiser(speech, sr)
 
-    if new_sr != 16_000:
-        speech = resample(speech, new_sr, 16_000, filter="kaiser_best", parallel=True)
+    if sr != 16_000:
+        speech = resample(speech, sr, 16_000, filter="kaiser_best", parallel=True)
 
     logger.info("Segmenting speech")
 
@@ -407,7 +410,7 @@ def transcribe(audio_file: str) -> List["TranscribeResult"]:
         speech_j, speech_lengths_j = slice_padding_audio_samples(
             speech, speech_lengths, [[vadsegments[j]]]
         )
-        stt_results = asr(speech_j[0])
+        stt_results = asr(speech_j[0], with_punct=with_punct)
         timestamp_offset = ((vadsegments[j][0] * 16) / 16_000) - 0.1
 
         if len(stt_results) < 1:

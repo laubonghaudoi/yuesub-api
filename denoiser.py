@@ -3,19 +3,11 @@
 import numpy as np
 from librosa import stft, istft
 import onnxruntime
+import gc
 from resampy.core import resample
 
 stft_hop_length = 420
 win_length = n_fft = 4 * stft_hop_length
-
-opts = onnxruntime.SessionOptions()
-session = onnxruntime.InferenceSession(
-    "models/denoiser.onnx",
-    providers=["CPUExecutionProvider"],
-    # providers=["ROCMExecutionProvider"],
-    # providers=["DnnlExecutionProvider"],
-    sess_options=opts,
-)
 
 
 def _stft(x):
@@ -106,8 +98,19 @@ def run(
 
 
 def denoiser(wav: np.array, sample_rate: int, batch_process_chunks=False) -> np.array:
+    opts = onnxruntime.SessionOptions()
+    session = onnxruntime.InferenceSession(
+        "models/denoiser.onnx",
+        providers=["CPUExecutionProvider"],
+        # providers=["ROCMExecutionProvider"],
+        # providers=["DnnlExecutionProvider"],
+        sess_options=opts,
+    )
     wav_onnx, new_sr = run(
         session, wav, sample_rate, batch_process_chunks=batch_process_chunks
     )
+    session.close()
+    del session
+    gc.collect()
 
     return wav_onnx, new_sr
