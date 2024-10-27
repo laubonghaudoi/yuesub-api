@@ -187,6 +187,9 @@ bert_model = BertModel("./models/hon9kon9ize/bert-large-cantonese")
 
 
 def transcribe(audio_file: str) -> List["TranscribeResult"]:
+    """
+    Main function to transcribe an audio file.
+    """
     speech, sr = librosa.load(audio_file)
     speech, new_sr = denoiser(speech, sr)
 

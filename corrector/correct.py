@@ -1,44 +1,43 @@
+from itertools import product
+from typing import Union
+
 from .LanguageModel import LanguageModel
 
 
-def correct(text: str, t2s_char_dict: dict, lm_model: LanguageModel) -> str:
+def correct(text: str, t2s_char_dict: dict, lm_model: Union[str, LanguageModel]) -> str:
+    """
+    Correct the output text using either a language model or OpenCC
+    Args:
+        text: Input text to correct
+        t2s_char_dict: Dictionary mapping traditional to simplified characters
+        lm_model: Either 'opencc' or a LanguageModel instance
+    Returns:
+        Corrected text string
+    """
     text = text.strip()
-    char_candidates = []
-
-    if text == "":
+    if not text:  # Early return for empty string
         return text
 
-    for char in text:
-        if char in t2s_char_dict:
-            char_candidates.append(t2s_char_dict[char])
-        else:
-            char_candidates.append([char])
+    if isinstance(lm_model, str) and lm_model == "opencc":
+        return NotImplementedError("OpenCC is not implemented yet")
+    
+    if not isinstance(lm_model, LanguageModel):
+        raise ValueError("lm_model should be either 'opencc' or a LanguageModel object")
 
-    # make all possible candidates
-    text_candidates = []
-
-    for i, candidates in enumerate(char_candidates):
-        if i == 0:
-            text_candidates = candidates
-        else:
-            new_candidates = []
-            for c in candidates:
-                for t in text_candidates:
-                    new_candidates.append(t + c)
-            text_candidates = new_candidates
-
-    if len(text_candidates) == 0:
-        return text
-
-    # get score of each char with kenlm
-    scores = []
-
-    for t in text_candidates:
-        scores.append(lm_model.perplexity(t))
-
-    # sort by score
-    text_candidates = [
-        x for _, x in sorted(zip(scores, text_candidates), key=lambda pair: pair[0])
+    # Get candidates for each character
+    char_candidates = [
+        t2s_char_dict.get(char, [char]) for char in text
     ]
 
-    return text_candidates[0]
+    # If no characters need correction, return original
+    if all(len(candidates) == 1 for candidates in char_candidates):
+        return text
+
+    # Generate all possible combinations
+    text_candidates = [''.join(comb) for comb in product(*char_candidates)]
+    
+    if not text_candidates:  # Safeguard against empty candidates
+        return text
+
+    # Find the candidate with minimum perplexity score
+    return min(text_candidates, key=lambda t: lm_model.perplexity(t))
