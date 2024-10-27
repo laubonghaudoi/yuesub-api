@@ -109,7 +109,6 @@ def denoiser(wav: np.array, sample_rate: int, batch_process_chunks=False) -> np.
     wav_onnx, new_sr = run(
         session, wav, sample_rate, batch_process_chunks=batch_process_chunks
     )
-    session.close()
     del session
     gc.collect()
 
