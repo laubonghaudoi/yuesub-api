@@ -16,3 +16,4 @@ psutil
 pytubefix
 funasr
 pytest
+funasr
