@@ -249,6 +249,9 @@ def transcribe(audio_file: str) -> List["TranscribeResult"]:
 
 
 def to_srt(results: List["TranscribeResult"]) -> str:
+    """
+    Convert the list of TranscrbeResult objects into a SRT file
+    """
     srt = SubRipFile()
 
     for i, t in enumerate(results):
