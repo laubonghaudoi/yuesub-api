@@ -6,7 +6,9 @@ import transcribe
 
 logging.basicConfig(level=logging.INFO)
 
-logger = logging.getLogger(__name__)
+import utils
+
+logger = logging.getLogger(__file__)
 
 model_dirs = [
     "models/hon9kon9ize/bert-large-cantonese",

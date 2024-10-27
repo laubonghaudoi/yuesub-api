@@ -105,7 +105,9 @@ def run(
     return res[: wav.shape[-1]], 44_100
 
 
-def denoiser(wav: np.array, sample_rate: int) -> np.array:
-    wav_onnx, new_sr = run(session, wav, sample_rate, batch_process_chunks=False)
+def denoiser(wav: np.array, sample_rate: int, batch_process_chunks=False) -> np.array:
+    wav_onnx, new_sr = run(
+        session, wav, sample_rate, batch_process_chunks=batch_process_chunks
+    )
 
     return wav_onnx, new_sr
