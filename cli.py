@@ -2,11 +2,12 @@ import os
 import argparse
 import logging
 from pathlib import Path
-import utils
 
 logging.basicConfig(level=logging.INFO)
 
-logger = logging.getLogger(__name__)
+import utils
+
+logger = logging.getLogger(__file__)
 
 model_dirs = [
     "models/hon9kon9ize/bert-large-cantonese",
