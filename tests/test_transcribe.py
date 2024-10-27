@@ -81,4 +81,4 @@ class TestProcessSegments(unittest.TestCase):
 if __name__ == "__main__":
     unittest.main()
 
-    # python -m unittest test_transcribe.py
+    # python -m unittest tests/test_transcribe.py
