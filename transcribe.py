@@ -34,12 +34,15 @@ logger.info(f"Using device: {DEVICE}")
 logger.info(f"Available ONNX providers: {available_providers}")
 logger.info(f"Selected providers: {PROVIDERS}")
 
+# Larger batch sizes for GPU processing
+BATCH_SIZE = 8 if DEVICE == "cuda" else 1
+
 asr_model = SenseVoiceSmall(
-    "./models/iic/SenseVoiceSmall", batch_size=1, quantize=True, providers=PROVIDERS
+    "./models/iic/SenseVoiceSmall", batch_size=BATCH_SIZE, quantize=True, providers=PROVIDERS
 )
 vad_model = Fsmn_vad_online(
     "./models/iic/speech_fsmn_vad_zh-cn-16k-common-pytorch",
-    batch_size=1,
+    batch_size=BATCH_SIZE,
     quantize=True,
     providers=PROVIDERS,
 )
@@ -228,22 +231,34 @@ def transcribe(audio_file: str) -> List["TranscribeResult"]:
     if not n:
         return []
 
-    for j, _ in tqdm(enumerate(range(n)), total=n, desc="Transcribing"):
-        speech_j, speech_lengths_j = slice_padding_audio_samples(
-            speech, speech_lengths, [[vadsegments[j]]]
-        )
-        stt_results = asr(speech_j[0])
-        timestamp_offset = ((vadsegments[j][0] * 16) / 16_000) - 0.1
-
-        if len(stt_results) < 1:
-            continue
-
-        # add timestamp offset
-        for result in stt_results:
-            result.start_time += timestamp_offset
-            result.end_time += timestamp_offset
-
-        results.extend(stt_results)
+    # Process segments in batches
+    for j in tqdm(range(0, n, BATCH_SIZE), desc="Transcribing"):
+        batch_end = min(j + BATCH_SIZE, n)
+        batch_segments = [vadsegments[k] for k in range(j, batch_end)]
+        
+        # Process each segment in the batch
+        batch_speeches = []
+        batch_lengths = []
+        for segment in batch_segments:
+            speech_seg, speech_len = slice_padding_audio_samples(
+                speech, speech_lengths, [[segment]]
+            )
+            batch_speeches.extend(speech_seg)
+            batch_lengths.extend(speech_len)
+        
+        # Batch process through ASR
+        batch_results = []
+        for idx, speech_segment in enumerate(batch_speeches):
+            stt_results = asr(speech_segment)
+            if len(stt_results) >= 1:
+                timestamp_offset = ((batch_segments[idx][0] * 16) / 16_000) - 0.1
+                # Add timestamp offset
+                for result in stt_results:
+                    result.start_time += timestamp_offset
+                    result.end_time += timestamp_offset
+                batch_results.extend(stt_results)
+        
+        results.extend(batch_results)
 
     # convert to Traditional Chinese
     for result in tqdm(
