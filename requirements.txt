@@ -17,3 +17,4 @@ pytubefix
 funasr
 pytest
 funasr
+OpenCC

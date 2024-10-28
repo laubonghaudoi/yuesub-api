@@ -20,9 +20,22 @@ from utils import load_dict
 
 logger = logging.getLogger(__name__)
 
-asr_model = SenseVoiceSmall("./models/iic/SenseVoiceSmall", batch_size=1, quantize=True)
+# Set up device and providers
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+PROVIDERS = (
+    ["CUDAExecutionProvider", "CPUExecutionProvider"]
+    if DEVICE == "cuda"
+    else ["CPUExecutionProvider"]
+)
+
+asr_model = SenseVoiceSmall(
+    "./models/iic/SenseVoiceSmall", batch_size=1, quantize=True, providers=PROVIDERS
+)
 vad_model = Fsmn_vad_online(
-    "./models/iic/speech_fsmn_vad_zh-cn-16k-common-pytorch", batch_size=1, quantize=True
+    "./models/iic/speech_fsmn_vad_zh-cn-16k-common-pytorch",
+    batch_size=1,
+    quantize=True,
+    providers=PROVIDERS,
 )
 
 LABELS = [
@@ -79,7 +92,7 @@ def asr(
         np.array(_language_list, dtype=np.int32),
         np.array(_textnorm_list, dtype=np.int32),
     )
-    ctc_logits = torch.from_numpy(ctc_logits).float()
+    ctc_logits = torch.from_numpy(ctc_logits).float().to(DEVICE)
     ratio = waveform[0].shape[0] / ctc_logits.size(1) / SAMPLE_RATE
     # support batch_size=1 only currently
     x = ctc_logits[0]
