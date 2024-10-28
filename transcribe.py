@@ -25,9 +25,9 @@ logger = logging.getLogger(__name__)
 available_providers = onnxruntime.get_available_providers()
 DEVICE = "cuda" if "CUDAExecutionProvider" in available_providers else "cpu"
 PROVIDERS = (
-    ["CUDAExecutionProvider", "CPUExecutionProvider"]
+    "CUDAExecutionProvider" 
     if "CUDAExecutionProvider" in available_providers
-    else ["CPUExecutionProvider"]
+    else "CPUExecutionProvider"
 )
 
 logger.info(f"Using device: {DEVICE}")

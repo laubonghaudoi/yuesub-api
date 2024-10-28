@@ -24,9 +24,9 @@ class BertModel(LanguageModel):
         available_providers = onnxruntime.get_available_providers()
         self.device = "cuda" if "CUDAExecutionProvider" in available_providers else "cpu"
         self.providers = (
-            ["CUDAExecutionProvider", "CPUExecutionProvider"]
+            "CUDAExecutionProvider" 
             if "CUDAExecutionProvider" in available_providers
-            else ["CPUExecutionProvider"]
+            else "CPUExecutionProvider"
         )
         
         self.tokenizer = BertTokenizerFast.from_pretrained(model_name)

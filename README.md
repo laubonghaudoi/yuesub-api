@@ -31,7 +31,7 @@ pip install -r requirements.txt
 1. export models to ONNX format, it would download the model weights and export to ONNX format in models folder
 
 ```bash
-$ python export_onnx.py
+$ python download_models.py
 ```
 
 2. run the cli
