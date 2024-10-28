@@ -10,8 +10,13 @@ stft_hop_length = 420
 win_length = n_fft = 4 * stft_hop_length
 
 # Configure device and providers
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-PROVIDERS = ["CUDAExecutionProvider", "CPUExecutionProvider"] if DEVICE == "cuda" else ["CPUExecutionProvider"]
+available_providers = onnxruntime.get_available_providers()
+DEVICE = "cuda" if "CUDAExecutionProvider" in available_providers else "cpu"
+PROVIDERS = (
+    ["CUDAExecutionProvider", "CPUExecutionProvider"]
+    if "CUDAExecutionProvider" in available_providers
+    else ["CPUExecutionProvider"]
+)
 
 opts = onnxruntime.SessionOptions()
 # Enable parallel execution

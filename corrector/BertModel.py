@@ -3,6 +3,7 @@ from typing import List
 
 import numpy as np
 import torch
+import onnxruntime
 from transformers import BertTokenizerFast
 
 from .LanguageModel import LanguageModel
@@ -20,11 +21,17 @@ class BertModel(LanguageModel):
     """
 
     def __init__(self, model_name="bert-base-chinese"):
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        available_providers = onnxruntime.get_available_providers()
+        self.device = "cuda" if "CUDAExecutionProvider" in available_providers else "cpu"
+        self.providers = (
+            ["CUDAExecutionProvider", "CPUExecutionProvider"]
+            if "CUDAExecutionProvider" in available_providers
+            else ["CPUExecutionProvider"]
+        )
+        
         self.tokenizer = BertTokenizerFast.from_pretrained(model_name)
-        provider = "CUDAExecutionProvider" if self.device == "cuda" else "CPUExecutionProvider"
         self.model = self.create_model_for_provider(
-            "{}/model.onnx".format(model_name), provider
+            "{}/model.onnx".format(model_name), self.providers
         )
 
     def get_loss(self, text: str) -> float:

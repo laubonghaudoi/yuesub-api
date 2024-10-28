@@ -7,6 +7,7 @@ from typing import List, Literal, Union
 import librosa
 import numpy as np
 import torch
+import onnxruntime
 from funasr_onnx import Fsmn_vad_online, SenseVoiceSmall
 from pysrt import SubRipFile, SubRipItem, SubRipTime
 from resampy.core import resample
@@ -21,12 +22,17 @@ from utils import load_dict
 logger = logging.getLogger(__name__)
 
 # Set up device and providers
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+available_providers = onnxruntime.get_available_providers()
+DEVICE = "cuda" if "CUDAExecutionProvider" in available_providers else "cpu"
 PROVIDERS = (
     ["CUDAExecutionProvider", "CPUExecutionProvider"]
-    if DEVICE == "cuda"
+    if "CUDAExecutionProvider" in available_providers
     else ["CPUExecutionProvider"]
 )
+
+logger.info(f"Using device: {DEVICE}")
+logger.info(f"Available ONNX providers: {available_providers}")
+logger.info(f"Selected providers: {PROVIDERS}")
 
 asr_model = SenseVoiceSmall(
     "./models/iic/SenseVoiceSmall", batch_size=1, quantize=True, providers=PROVIDERS
