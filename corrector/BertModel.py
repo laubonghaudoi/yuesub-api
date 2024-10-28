@@ -38,7 +38,7 @@ class BertModel(LanguageModel):
         model_inputs = self.tokenizer(text, return_tensors="pt")
         vocab_size = len(self.tokenizer.get_vocab())
         labels = model_inputs.input_ids.to(self.device)
-        inputs_onnx = {k: v.to(self.device).detach().numpy() for k, v in model_inputs.items()}
+        inputs_onnx = {k: v.to(self.device).detach().cpu().numpy() for k, v in model_inputs.items()}
         predictions = self.model.run(None, inputs_onnx)
         lm_logits = torch.from_numpy(predictions[0]).to(self.device)
         loss_fct = torch.nn.CrossEntropyLoss().to(self.device)  # -100 index = padding token

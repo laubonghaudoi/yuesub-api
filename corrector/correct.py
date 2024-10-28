@@ -4,11 +4,12 @@ from typing import Union
 import opencc
 
 from .LanguageModel import LanguageModel
+from .BertModel import BertModel
 
 converter = opencc.OpenCC("s2hk.json")
 
 
-def correct(text: str, t2s_char_dict: dict, lm_model: Union[str, LanguageModel]) -> str:
+def correct(text: str, t2s_char_dict: dict, corrector: str) -> str:
     """
     Correct the output text using either a language model or OpenCC
     Args:
@@ -22,13 +23,15 @@ def correct(text: str, t2s_char_dict: dict, lm_model: Union[str, LanguageModel])
     if not text:  # Early return for empty string
         return text
 
-    if isinstance(lm_model, str) and lm_model == "opencc":
+    if corrector == "opencc":
         return opencc_correct(text)
 
-    if not isinstance(lm_model, LanguageModel):
-        raise ValueError("lm_model should be either 'opencc' or a LanguageModel object")
+    elif corrector == "bert":
+        bert_model = BertModel("./models/hon9kon9ize/bert-large-cantonese")
 
-    return lm_correct(text, t2s_char_dict, lm_model)
+        return lm_correct(text, t2s_char_dict, bert_model)
+    else:
+        raise ValueError("corrector should be either 'opencc' or 'bert'")
 
 
 def lm_correct(text: str, t2s_char_dict: dict, lm_model: LanguageModel) -> str:

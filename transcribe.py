@@ -14,7 +14,7 @@ from resampy.core import resample
 from torchaudio.pipelines import MMS_FA as bundle
 from tqdm.auto import tqdm
 
-from corrector import BertModel, correct
+from corrector import correct
 from denoiser import denoiser
 from TranscribeResult import TranscribeResult
 from utils import load_dict
@@ -205,9 +205,6 @@ def slice_padding_audio_samples(speech, speech_lengths, vad_segments):
     return speech_list, speech_lengths_list
 
 
-bert_model = BertModel("./models/hon9kon9ize/bert-large-cantonese")
-
-
 def transcribe(audio_file: str) -> List["TranscribeResult"]:
     """
     Main function to transcribe an audio file.
@@ -264,7 +261,7 @@ def transcribe(audio_file: str) -> List["TranscribeResult"]:
     for result in tqdm(
         results, total=len(results), desc="Converting to Traditional Chinese"
     ):
-        result.text = correct(result.text, t2s_char_dict, bert_model)
+        result.text = correct(result.text, t2s_char_dict, "bert")
 
     return results
 
