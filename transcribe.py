@@ -17,7 +17,7 @@ from torchaudio.pipelines import MMS_FA as bundle
 import gc
 from tqdm.auto import tqdm
 
-from corrector import correct
+from corrector  import correct, BertModel
 from denoiser import denoiser
 from TranscribeResult import TranscribeResult
 from utils import load_dict
@@ -45,6 +45,7 @@ vad_model = Fsmn_vad_online(
     batch_size=1,
     quantize=True,
     providers=PROVIDERS,
+)
 
 tokenizer = SentencepiecesTokenizer(
     bpemodel=os.path.join(
@@ -289,7 +290,7 @@ def transcribe(
     for result in tqdm(
         results, total=len(results), desc="Converting to Traditional Chinese"
     ):
-        result.text = correct(result.text, t2s_char_dict, "opencc")
+        result.text = correct(result.text, t2s_char_dict, "bert", bert_model)
 
     return results
 

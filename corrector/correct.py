@@ -9,7 +9,7 @@ from .BertModel import BertModel
 converter = opencc.OpenCC("s2hk.json")
 
 
-def correct(text: str, t2s_char_dict: dict, corrector: str) -> str:
+def correct(text: str, t2s_char_dict: dict, corrector: str, lm_model: LanguageModel) -> str:
     """
     Correct the output text using either a language model or OpenCC
     Args:
@@ -27,9 +27,7 @@ def correct(text: str, t2s_char_dict: dict, corrector: str) -> str:
         return opencc_correct(text)
 
     elif corrector == "bert":
-        bert_model = BertModel("./models/hon9kon9ize/bert-large-cantonese")
-
-        return lm_correct(text, t2s_char_dict, bert_model)
+        return lm_correct(text, t2s_char_dict, lm_model)
     else:
         raise ValueError("corrector should be either 'opencc' or 'bert'")
 
