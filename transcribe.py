@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+import sys
 import tempfile
 from typing import List, Literal, Union
 
@@ -206,7 +207,10 @@ def transcribe(audio_file: str) -> List["TranscribeResult"]:
     """
     Main function to transcribe an audio file.
     """
+    logger.info("Loading audio file: %s", audio_file)
     speech, sr = librosa.load(audio_file)
+
+    logger.info("Denoising speech")
     speech, new_sr = denoiser(speech, sr)
 
     if new_sr != 16_000:
@@ -246,7 +250,7 @@ def transcribe(audio_file: str) -> List["TranscribeResult"]:
     for result in tqdm(
         results, total=len(results), desc="Converting to Traditional Chinese"
     ):
-        result.text = correct(result.text, t2s_char_dict, "bert")
+        result.text = correct(result.text, t2s_char_dict, "opencc")
 
     return results
 

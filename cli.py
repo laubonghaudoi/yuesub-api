@@ -3,11 +3,16 @@ import logging
 import os
 from pathlib import Path
 
+# Configure logging first, before any imports
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    force=True  # Override any existing logger configurations
+)
+
 from transcribe import to_srt, transcribe
 
-logging.basicConfig(level=logging.INFO)
-
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 model_dirs = [
     "models/hon9kon9ize/bert-large-cantonese",
