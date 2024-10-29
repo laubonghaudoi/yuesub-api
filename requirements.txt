@@ -16,4 +16,5 @@ psutil
 pytubefix
 funasr
 pytest
-funasr
+OpenCC
+onnxruntime-gpu

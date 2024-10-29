@@ -1,12 +1,14 @@
 import logging
 import os
 import re
+import sys
 import tempfile
 from typing import List, Literal, Union
 
 import librosa
 import numpy as np
 import torch
+import onnxruntime
 from funasr_onnx import Fsmn_vad_online, SenseVoiceSmall
 from funasr_onnx.utils.sentencepiece_tokenizer import SentencepiecesTokenizer
 from pysrt import SubRipFile, SubRipItem, SubRipTime
@@ -15,12 +17,35 @@ from torchaudio.pipelines import MMS_FA as bundle
 import gc
 from tqdm.auto import tqdm
 
-from corrector import BertModel, correct
+from corrector  import correct, BertModel
 from denoiser import denoiser
 from TranscribeResult import TranscribeResult
 from utils import load_dict
 
 logger = logging.getLogger(__name__)
+
+# Set up device and providers
+available_providers = onnxruntime.get_available_providers()
+DEVICE = "cuda" if "CUDAExecutionProvider" in available_providers else "cpu"
+PROVIDERS = (
+    "CUDAExecutionProvider" 
+    if "CUDAExecutionProvider" in available_providers
+    else "CPUExecutionProvider"
+)
+
+logger.info(f"Using device: {DEVICE}")
+logger.info(f"Available ONNX providers: {available_providers}")
+logger.info(f"Selected providers: {PROVIDERS}")
+
+asr_model = SenseVoiceSmall(
+    "./models/iic/SenseVoiceSmall", batch_size=1, quantize=True, providers=PROVIDERS
+)
+vad_model = Fsmn_vad_online(
+    "./models/iic/speech_fsmn_vad_zh-cn-16k-common-pytorch",
+    batch_size=1,
+    quantize=True,
+    providers=PROVIDERS,
+)
 
 tokenizer = SentencepiecesTokenizer(
     bpemodel=os.path.join(
@@ -82,7 +107,7 @@ def asr(
         np.array(_language_list, dtype=np.int32),
         np.array(_textnorm_list, dtype=np.int32),
     )
-    ctc_logits = torch.from_numpy(ctc_logits).float()
+    ctc_logits = torch.from_numpy(ctc_logits).float().to(DEVICE)
     ratio = waveform[0].shape[0] / ctc_logits.size(1) / SAMPLE_RATE
     # support batch_size=1 only currently
     x = ctc_logits[0]
@@ -190,6 +215,16 @@ def slice_padding_audio_samples(speech, speech_lengths, vad_segments):
     return speech_list, speech_lengths_list
 
 
+def transcribe(audio_file: str) -> List["TranscribeResult"]:
+    """
+    Main function to transcribe an audio file.
+    """
+    logger.info("Loading audio file: %s", audio_file)
+    speech, sr = librosa.load(audio_file)
+
+    logger.info("Denoising speech")
+    speech, new_sr = denoiser(speech, sr)
+
 def speech_segmentation(speech, sr):
     vad_model = Fsmn_vad_online(
         "./models/iic/speech_fsmn_vad_zh-cn-16k-common-pytorch",
@@ -255,7 +290,7 @@ def transcribe(
     for result in tqdm(
         results, total=len(results), desc="Converting to Traditional Chinese"
     ):
-        result.text = correct(result.text, t2s_char_dict, bert_model)
+        result.text = correct(result.text, t2s_char_dict, "bert", bert_model)
 
     return results
 

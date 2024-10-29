@@ -3,11 +3,34 @@
 import numpy as np
 from librosa import stft, istft
 import onnxruntime
+import torch
 import gc
 from resampy.core import resample
 
 stft_hop_length = 420
 win_length = n_fft = 4 * stft_hop_length
+
+# Configure device and providers
+available_providers = onnxruntime.get_available_providers()
+DEVICE = "cuda" if "CUDAExecutionProvider" in available_providers else "cpu"
+PROVIDERS = (
+    ["CUDAExecutionProvider", "CPUExecutionProvider"]
+    if "CUDAExecutionProvider" in available_providers
+    else ["CPUExecutionProvider"]
+)
+
+opts = onnxruntime.SessionOptions()
+# Enable parallel execution
+opts.inter_op_num_threads = 4
+opts.intra_op_num_threads = 4
+opts.enable_mem_pattern = True
+opts.enable_cpu_mem_arena = True
+
+session = onnxruntime.InferenceSession(
+    "models/denoiser.onnx",
+    providers=PROVIDERS,
+    sess_options=opts,
+)
 
 
 def _stft(x):
@@ -48,6 +71,11 @@ def model(onnx_session, wav: np.array) -> np.array:
     padded_wav = np.pad(wav, ((0, 0), (0, 441)))
 
     mag, cos, sin = _stft(padded_wav)  # (b nfft/2 t)
+
+    # Ensure contiguous memory layout for better performance
+    mag = np.ascontiguousarray(mag, dtype=np.float32)
+    cos = np.ascontiguousarray(cos, dtype=np.float32)
+    sin = np.ascontiguousarray(sin, dtype=np.float32)
 
     ort_inputs = {
         "mag": mag,
