@@ -1,13 +1,14 @@
 import unittest
 
-from transcribe import _process_segments
-from TranscribeResult import TranscribeResult
+from transcriber.Transcriber import Transcriber
+from transcriber.TranscribeResult import TranscribeResult
 
 
 class TestProcessSegments(unittest.TestCase):
     def setUp(self):
         self.token_spans = [
-            type("TokenSpan", (object,), {"token": t, "start": i, "end": i + 1})
+            type("TokenSpan", (object,), {
+                 "token": t, "start": i, "end": i + 1})
             for i, t in enumerate(
                 [
                     # Mock token spans with token, start time, and end time
@@ -26,7 +27,8 @@ class TestProcessSegments(unittest.TestCase):
         ]
         self.ratio = 1.0
         self.with_punct = False
-        self.punct_labels = "?!。，；？！"  # corresponding token IDs [9705, 9676, 9729, 24879, 24882, 24883, 20046]
+        # corresponding token IDs [9705, 9676, 9729, 24879, 24882, 24883, 20046]
+        self.punct_labels = "?!。，；？！"
 
         # Mocking asr_model and special_token_ids
         global asr_model, special_token_ids
@@ -47,10 +49,12 @@ class TestProcessSegments(unittest.TestCase):
                 )()
             },
         )()
-        special_token_ids = [3, 4]  # Assuming tokens 3 and 4 are special tokens
+        # Assuming tokens 3 and 4 are special tokens
+        special_token_ids = [3, 4]
+        self.transcriber = Transcriber(corrector="opencc")
 
     def test_process_segments_without_punctuation(self):
-        results = _process_segments(
+        results = self.transcriber._process_token_spans(
             self.token_spans, self.ratio, self.with_punct, self.punct_labels
         )
         expected_results = [
@@ -65,9 +69,10 @@ class TestProcessSegments(unittest.TestCase):
     def test_process_segments_with_punctuation(self):
         self.with_punct = True
         self.token_spans.append(
-            type("TokenSpan", (object,), {"token": 5, "start": 2.0, "end": 2.5})
+            type("TokenSpan", (object,), {
+                 "token": 5, "start": 2.0, "end": 2.5})
         )
-        results = _process_segments(
+        results = self.transcriber._process_token_spans(
             self.token_spans, self.ratio, self.with_punct, self.punct_labels
         )
         expected_results = [
