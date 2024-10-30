@@ -22,6 +22,7 @@ class Corrector:
                 (re.compile(r"噶"), r"㗎"),
                 (re.compile(r"咁(?=[我你佢就樣就話係啊呀，。])"), r"噉"),
                 (re.compile(r"(?<![曝晾])曬(?:[衣太衫褲被命嘢相])"), r"晒"),
+                (re.compile(r"翻(?=[去到嚟]))"), r"返"),
             ]
 
         elif corrector == "bert":
