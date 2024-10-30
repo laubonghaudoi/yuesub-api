@@ -1,6 +1,6 @@
 from .LanguageModel import LanguageModel
 from .BertModel import BertModel
-from .correct import correct
+from .Corrector import Corrector
 
 # Re-export at package level
-__all__ = ['LanguageModel', 'BertModel', 'correct']
+__all__ = ['LanguageModel', 'BertModel', 'Corrector']
