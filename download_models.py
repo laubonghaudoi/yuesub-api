@@ -26,8 +26,10 @@ def export_vad_onnx(model_name):
 
 
 def get_dummy_input(seq_length=512):
-    input_ids = torch.tensor([[i for i in range(seq_length)]], dtype=torch.long)
-    attention_mask = torch.tensor([[1 for i in range(seq_length)]], dtype=torch.long)
+    input_ids = torch.tensor(
+        [[i for i in range(seq_length)]], dtype=torch.long)
+    attention_mask = torch.tensor(
+        [[1 for i in range(seq_length)]], dtype=torch.long)
     token_type_ids = torch.tensor(
         [
             [0 for i in range(int(seq_length / 2))]
@@ -83,4 +85,4 @@ def export_bert_onnx(model_name):
 if __name__ == "__main__":
     export_sensevoice_onnx("iic/SenseVoiceSmall")
     export_vad_onnx("iic/speech_fsmn_vad_zh-cn-16k-common-pytorch")
-    export_bert_onnx("hon9kon9ize/bert-large-cantonese")
+    # export_bert_onnx("hon9kon9ize/bert-large-cantonese")

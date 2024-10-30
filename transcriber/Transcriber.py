@@ -21,7 +21,12 @@ logger = logging.getLogger(__name__)
 
 
 class Transcriber:
-    def __init__(self, corrector:Literal["opencc", "bert", None]=None, use_denoiser=False, with_punct=True, sr=16000):
+    """
+    Transcriber class
+
+    """
+
+    def __init__(self, corrector: Literal["opencc", "bert", None] = None, use_denoiser=False, with_punct=True, sr=16000):
         self.corrector = corrector
         self.use_denoiser = use_denoiser
         self.with_punct = with_punct
@@ -165,7 +170,7 @@ class Transcriber:
         """Convert simplified Chinese to traditional Chinese"""
         if not results:
             return results
-            
+
         corrector = Corrector(self.corrector)
         if self.corrector == "bert":
             for result in tqdm(
@@ -183,7 +188,7 @@ class Transcriber:
             converted_text = corrector.correct(combined_text)
             # Split back into individual results
             converted_parts = converted_text.split(delimiter)
-            
+
             # Update results with converted text
             for result, converted in zip(results, converted_parts):
                 result.text = converted

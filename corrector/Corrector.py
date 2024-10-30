@@ -15,12 +15,12 @@ class Corrector:
         self.bert_model = None
 
         if corrector == "opencc":
-            self.converter = opencc.OpenCC("s2hk.json")
+            self.converter = opencc.OpenCC("s2hk")
             self.regular_errors: list[tuple[re.Pattern, str]] = [
                 (re.compile(r"俾(?!(?:路支|斯麥|益))"), r"畀"),
                 (re.compile(r"(?<!(?:聯))[系繫](?!(?:統))"), r"係"),
                 (re.compile(r"噶"), r"㗎"),
-                (re.compile(r"咁[我你佢就樣就話]"), r"噉"),
+                (re.compile(r"咁(?=[我你佢就樣就話係啊呀，。])"), r"噉"),
             ]
 
         elif corrector == "bert":
@@ -141,5 +141,5 @@ class Corrector:
         opencc_text = self.converter.convert(text)
         for pattern, replacement in self.regular_errors:
             opencc_text = pattern.sub(replacement, opencc_text)
-        
+
         return opencc_text

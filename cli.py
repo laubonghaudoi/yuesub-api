@@ -5,7 +5,7 @@ from pathlib import Path
 
 from utils import to_srt
 
-from transcriber import Transcriber
+from transcriber.Transcriber import Transcriber
 
 # Configure logging first, before any imports
 logging.basicConfig(
@@ -18,7 +18,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 MODEL_DIRS = [
-    "models/hon9kon9ize/bert-large-cantonese",
     "models/iic/SenseVoiceSmall",
     "models/iic/speech_fsmn_vad_zh-cn-16k-common-pytorch",
     "models/denoiser.onnx",
@@ -27,13 +26,15 @@ MODEL_DIRS = [
 
 def check_models():
     """Check if all required models are downloaded"""
-    logger.info("Checking models")
     for model_dir in MODEL_DIRS:
         if not os.path.exists(model_dir):
             raise FileNotFoundError(
                 f"Model not found: {model_dir}\n"
                 "Please run `python download_models.py` first"
             )
+    if not os.path.exists("models/hon9kon9ize/bert-large-cantonese"):
+        logger.info(
+            "models/hon9kon9ize/bert-large-cantonese not found, only OpenCC corrector is available",)
 
 
 def save_transcription(srt_text: str, audio_file: str, output_dir: str):
@@ -73,6 +74,7 @@ def main():
     args = parser.parse_args()
 
     try:
+        logger.info("Checking models")
         check_models()
 
         logger.info("Transcribing %s", args.audio_file)
