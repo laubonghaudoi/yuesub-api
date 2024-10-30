@@ -5,7 +5,7 @@ from pathlib import Path
 
 from utils import to_srt
 
-from transcriber.Transcriber import Transcriber
+from transcriber import Transcriber
 
 # Configure logging first, before any imports
 logging.basicConfig(
@@ -27,6 +27,7 @@ MODEL_DIRS = [
 
 def check_models():
     """Check if all required models are downloaded"""
+    logger.info("Checking models")
     for model_dir in MODEL_DIRS:
         if not os.path.exists(model_dir):
             raise FileNotFoundError(
@@ -78,7 +79,6 @@ def main():
         transcriber = Transcriber(
             corrector="opencc", use_denoiser=args.denoise, with_punct=args.punct)
         transcribe_results = transcriber.transcribe(args.audio_file)
-        logger.info("%s", transcribe_results)
 
         if not transcribe_results:
             logger.error("No transcriptions found")

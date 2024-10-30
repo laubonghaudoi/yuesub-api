@@ -1,7 +1,7 @@
 import unittest
 
-from transcriber.Transcriber import Transcriber
-from transcriber.TranscribeResult import TranscribeResult
+from transcriber import Transcriber
+from transcriber import TranscribeResult
 
 
 class TestProcessSegments(unittest.TestCase):

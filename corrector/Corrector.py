@@ -3,6 +3,7 @@ from itertools import product
 
 import opencc
 import pandas as pd
+import re
 
 from .BertModel import BertModel
 
@@ -15,6 +16,13 @@ class Corrector:
 
         if corrector == "opencc":
             self.converter = opencc.OpenCC("s2hk.json")
+            self.regular_errors: list[tuple[re.Pattern, str]] = [
+                (re.compile(r"俾(?!(?:路支|斯麥|益))"), r"畀"),
+                (re.compile(r"(?<!(?:聯))[系繫](?!(?:統))"), r"係"),
+                (re.compile(r"噶"), r"㗎"),
+                (re.compile(r"咁[我你佢就樣就話]"), r"噉"),
+            ]
+
         elif corrector == "bert":
             self.t2s_char_dict, self.char_jyutping_dict, self.jyutping_char_dict,  self.chars_freq = self._load_dict()
             self.bert_model = BertModel(
@@ -130,5 +138,8 @@ class Corrector:
         Returns:
             Converted text string
         """
-
-        return self.converter.convert(text)
+        opencc_text = self.converter.convert(text)
+        for pattern, replacement in self.regular_errors:
+            opencc_text = pattern.sub(replacement, opencc_text)
+        
+        return opencc_text

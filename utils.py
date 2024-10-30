@@ -6,7 +6,7 @@ from typing import List
 from pysrt import SubRipFile, SubRipItem, SubRipTime
 from pytubefix import YouTube
 
-from transcriber.TranscribeResult import TranscribeResult
+from transcriber import TranscribeResult
 
 logger = logging.getLogger(__name__)
 
