@@ -5,7 +5,7 @@ from pathlib import Path
 
 from utils import to_srt
 
-from transcriber.Transcriber import Transcriber
+from transcriber.StreamTranscriber import StreamTranscriber
 
 # Configure logging first, before any imports
 logging.basicConfig(
@@ -78,7 +78,7 @@ def main():
         check_models()
 
         logger.info("Transcribing %s", args.audio_file)
-        transcriber = Transcriber(
+        transcriber = StreamTranscriber(
             corrector="opencc", use_denoiser=args.denoise, with_punct=args.punct)
         transcribe_results = transcriber.transcribe(args.audio_file)
 
