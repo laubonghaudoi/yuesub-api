@@ -5,6 +5,7 @@ from pathlib import Path
 
 from utils import to_srt
 
+from transcriber.AutoTranscriber import AutoTranscriber
 from transcriber.Transcriber import Transcriber
 
 # Configure logging first, before any imports
