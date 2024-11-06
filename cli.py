@@ -79,7 +79,7 @@ def main():
         check_models()
 
         logger.info("Transcribing %s", args.audio_file)
-        transcriber = Transcriber(
+        transcriber = AutoTranscriber(
             corrector="opencc", use_denoiser=args.denoise, with_punct=args.punct)
         transcribe_results = transcriber.transcribe(args.audio_file)
 

@@ -25,7 +25,7 @@ class AutoTranscriber:
         self.use_denoiser = use_denoiser
         self.with_punct = with_punct
         self.sr = sr
-        
+
         # Initialize models
         self.vad_model = AutoModel(model="fsmn-vad")
         self.asr_model = AutoModel(
@@ -57,14 +57,14 @@ class AutoTranscriber:
 
         if sr != 16_000:
             speech = resample(speech, sr, 16_000,
-                            filter="kaiser_best", parallel=True)
+                              filter="kaiser_best", parallel=True)
 
         # Get VAD segments
         logger.info("Segmenting speech...")
         vad_results = self.vad_model.generate(input=speech)
         if not vad_results or not vad_results[0]["value"]:
             return []
-        
+
         vad_segments = vad_results[0]["value"]
 
         # Process each segment
@@ -73,12 +73,13 @@ class AutoTranscriber:
             start_sample = int(segment[0] * 16)  # Convert ms to samples
             end_sample = int(segment[1] * 16)
             segment_audio = speech[start_sample:end_sample]
-            
+
             # Get ASR results for segment
-            asr_result = self.asr_model.generate(input=segment_audio, language="yue", use_itn=True)
+            asr_result = self.asr_model.generate(
+                input=segment_audio, language="yue", use_itn=True)
             if not asr_result:
                 continue
-                
+
             # Convert ASR result to TranscribeResult format
             segment_result = TranscribeResult(
                 text=asr_result[0]["text"],
