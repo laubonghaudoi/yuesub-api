@@ -10,8 +10,8 @@ from transcriber.Transcriber import Transcriber
 # Configure logging first, before any imports
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    force=True  # Override any existing logger configurations
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    force=True,  # Override any existing logger configurations
 )
 
 
@@ -34,7 +34,8 @@ def check_models():
             )
     if not os.path.exists("models/hon9kon9ize/bert-large-cantonese"):
         logger.info(
-            "models/hon9kon9ize/bert-large-cantonese not found, only OpenCC corrector is available",)
+            "models/hon9kon9ize/bert-large-cantonese not found, only OpenCC corrector is available",
+        )
 
 
 def save_transcription(srt_text: str, audio_file: str, output_dir: str):
@@ -51,24 +52,19 @@ def save_transcription(srt_text: str, audio_file: str, output_dir: str):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Transcribe audio to SRT subtitles")
+    parser = argparse.ArgumentParser(description="Transcribe audio to SRT subtitles")
     parser.add_argument("audio_file", type=str, help="Path to audio file")
     parser.add_argument(
-        "--punct",
-        help="Whether to keep punctuation",
-        action="store_true"
+        "--punct", help="Whether to keep punctuation", action="store_true"
     )
     parser.add_argument(
-        "--denoise",
-        help="Whether to denoise the audio",
-        action="store_true"
+        "--denoise", help="Whether to denoise the audio", action="store_true"
     )
     parser.add_argument(
         "--output-dir",
         type=str,
         default="output",
-        help="Output directory for SRT files"
+        help="Output directory for SRT files",
     )
 
     args = parser.parse_args()
@@ -79,7 +75,8 @@ def main():
 
         logger.info("Transcribing %s", args.audio_file)
         transcriber = Transcriber(
-            corrector="opencc", use_denoiser=args.denoise, with_punct=args.punct)
+            corrector="opencc", use_denoiser=args.denoise, with_punct=args.punct
+        )
         transcribe_results = transcriber.transcribe(args.audio_file)
 
         if not transcribe_results:
