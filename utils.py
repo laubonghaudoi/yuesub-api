@@ -1,7 +1,7 @@
 import logging
 import os
 import tempfile
-from typing import List
+from typing import Iterator
 
 from pysrt import SubRipFile, SubRipItem, SubRipTime
 from pytubefix import YouTube
@@ -46,7 +46,7 @@ def download_youtube_audio(video_id: str) -> str:
         return None
 
 
-def to_srt(results: List["TranscribeResult"]) -> str:
+def to_srt(results: Iterator["TranscribeResult"]) -> str:
     """
     Convert the list of TranscribeResult objects into a SRT file
     """
