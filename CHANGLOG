@@ -22,3 +22,8 @@ Make denoiser as an optional parameter
 ### [1.0.5] - 2024-10-30
 
 Replace Bert to OpenCC as corrector, thanks @laubonghaudoi
+
+### [1.0.6] - 2024-11-07
+
+- Add StreamTranscriber for preview transcription while processing
+- Add FunASR library
