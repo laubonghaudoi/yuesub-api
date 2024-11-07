@@ -1,6 +1,11 @@
 from .AutoTranscriber import AutoTranscriber
-from .Transcriber import Transcriber
+from .OnnxTranscriber import OnnxTranscriber
 from .StreamTranscriber import StreamTranscriber
 from .TranscribeResult import TranscribeResult
 
-__all__ = ["AutoTranscriber", "Transcriber", "StreamTranscriber", "TranscribeResult"]
+__all__ = [
+    "AutoTranscriber",
+    "OnnxTranscriber",
+    "StreamTranscriber",
+    "TranscribeResult",
+]

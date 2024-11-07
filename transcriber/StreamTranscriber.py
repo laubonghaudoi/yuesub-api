@@ -17,12 +17,12 @@ from tqdm.auto import tqdm
 from corrector.Corrector import Corrector
 from denoiser import denoiser
 from transcriber.TranscribeResult import TranscribeResult
-from transcriber.Transcriber import Transcriber
+from transcriber.OnnxTranscriber import OnnxTranscriber
 
 logger = logging.getLogger(__name__)
 
 
-class StreamTranscriber(Transcriber):
+class StreamTranscriber(OnnxTranscriber):
     """
     StreamTranscriber class
 

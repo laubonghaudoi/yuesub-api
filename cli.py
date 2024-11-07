@@ -5,7 +5,7 @@ from pathlib import Path
 
 from utils import to_srt
 
-from transcriber import StreamTranscriber, Transcriber, AutoTranscriber
+from transcriber import StreamTranscriber, OnnxTranscriber, AutoTranscriber
 
 # Configure logging first, before any imports
 logging.basicConfig(
@@ -91,7 +91,7 @@ def main():
 
     args = parser.parse_args()
 
-    transcriber_class = [StreamTranscriber, AutoTranscriber, Transcriber][
+    transcriber_class = [StreamTranscriber, OnnxTranscriber, AutoTranscriber][
         0 if args.stream == True else 1 if args.onnx == True else 2
     ]
 

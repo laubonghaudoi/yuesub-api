@@ -21,9 +21,9 @@ from transcriber.TranscribeResult import TranscribeResult
 logger = logging.getLogger(__name__)
 
 
-class Transcriber:
+class OnnxTranscriber:
     """
-    Transcriber class
+    Onnx runtime Transcriber class
 
     """
 
