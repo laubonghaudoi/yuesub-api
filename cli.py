@@ -5,7 +5,7 @@ from pathlib import Path
 
 from utils import to_srt
 
-from transcriber.StreamTranscriber import StreamTranscriber
+from transcriber import StreamTranscriber, Transcriber
 
 # Configure logging first, before any imports
 logging.basicConfig(
@@ -66,8 +66,28 @@ def main():
         default="output",
         help="Output directory for SRT files",
     )
+    parser.add_argument(
+        "--stream",
+        help="Streaming the transcription preview while processing",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "--corrector",
+        type=str,
+        default="opencc",
+        help="Corrector type: opencc or bert",
+        choices=["opencc", "bert"],
+    )
+    parser.add_argument(
+        "--verbose", help="Increase output verbosity", action="store_true", default=True
+    )
 
     args = parser.parse_args()
+
+    transcriber_class = [StreamTranscriber, Transcriber][
+        0 if args.stream == True else 1
+    ]
 
     try:
         logger.info("Checking models")
@@ -75,7 +95,7 @@ def main():
 
         logger.info("Transcribing %s", args.audio_file)
 
-        transcriber = Transcriber(
+        transcriber = transcriber_class(
             corrector="opencc", use_denoiser=args.denoise, with_punct=args.punct
         )
 

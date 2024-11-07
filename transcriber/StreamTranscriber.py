@@ -48,8 +48,7 @@ class StreamTranscriber(Transcriber):
             speech, _ = denoiser(speech, sr)
 
         if sr != 16_000:
-            speech = resample(speech, sr, 16_000,
-                              filter="kaiser_best", parallel=True)
+            speech = resample(speech, sr, 16_000, filter="kaiser_best", parallel=True)
 
         logger.info("Segmenting speech...")
         vad_segments = self._segment_speech(speech)
@@ -57,35 +56,28 @@ class StreamTranscriber(Transcriber):
         if not vad_segments:
             return []
 
-
         pgb_vad_segments = tqdm(
-            enumerate(vad_segments),
-            total=len(vad_segments),
-            desc="Transcribing"
+            enumerate(vad_segments), total=len(vad_segments), desc="Transcribing"
         )
-        
-        result_generator =  self._process_segments(speech, pgb_vad_segments)
+
+        result_generator = self._process_segments(speech, pgb_vad_segments)
         for result in self._convert_to_traditional_chinese(result_generator):
             pgb_vad_segments.set_description(result.text)
             yield result
 
     def _process_segments(
-        self,
-        speech: np.ndarray,
-        pgb_vad_segments: Iterator
+        self, speech: np.ndarray, pgb_vad_segments: Iterator
     ) -> Generator[TranscribeResult, None, None]:
         """Process each speech segment"""
         speech_lengths = len(speech)
 
         for _, segment in pgb_vad_segments:
             speech_j, _ = self._slice_padding_audio_samples(
-                speech,
-                speech_lengths,
-                [[segment]]
+                speech, speech_lengths, [[segment]]
             )
 
             stt_results = self._asr(speech_j[0])
-            timestamp_offset = ((segment[0] * 16) / 16_000) - 0.1
+            timestamp_offset = ((segment[0] * 16) / 16_000) + self.offset_in_seconds
 
             if not stt_results:
                 continue
@@ -97,8 +89,7 @@ class StreamTranscriber(Transcriber):
                 yield result
 
     def _convert_to_traditional_chinese(
-        self,
-        results: Iterator[TranscribeResult]
+        self, results: Iterator[TranscribeResult]
     ) -> Generator[TranscribeResult, None, None]:
         """Convert simplified Chinese to traditional Chinese"""
         if not results:
