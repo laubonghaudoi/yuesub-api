@@ -17,4 +17,4 @@ pytubefix
 funasr
 pytest
 OpenCC
-onnxruntime-gpu
+onnxruntime-gpu; sys_platform != 'darwin'

@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+import time
 from typing import List, Literal, Union
 
 import librosa
@@ -26,11 +27,19 @@ class Transcriber:
 
     """
 
-    def __init__(self, corrector: Literal["opencc", "bert", None] = None, use_denoiser=False, with_punct=True, sr=16000):
+    def __init__(
+        self,
+        corrector: Literal["opencc", "bert", None] = None,
+        use_denoiser=False,
+        with_punct=True,
+        offset_in_seconds=-0.25,
+        sr=16000,
+    ):
         self.corrector = corrector
         self.use_denoiser = use_denoiser
         self.with_punct = with_punct
         self.sr = sr
+        self.offset_in_seconds = offset_in_seconds
 
         self._setup_device()
         self._load_models()
@@ -40,7 +49,9 @@ class Transcriber:
     def _setup_device(self):
         """Set up device and providers"""
         self.available_providers = onnxruntime.get_available_providers()
-        self.device = "cuda" if "CUDAExecutionProvider" in self.available_providers else "cpu"
+        self.device = (
+            "cuda" if "CUDAExecutionProvider" in self.available_providers else "cpu"
+        )
         self.providers = (
             "CUDAExecutionProvider"
             if "CUDAExecutionProvider" in self.available_providers
@@ -57,7 +68,7 @@ class Transcriber:
             "./models/iic/SenseVoiceSmall",
             batch_size=1,
             quantize=True,
-            providers=self.providers
+            providers=self.providers,
         )
         self.vad_model = Fsmn_vad_online(
             "./models/iic/speech_fsmn_vad_zh-cn-16k-common-pytorch",
@@ -70,14 +81,16 @@ class Transcriber:
         """Load and setup tokenizer"""
         self.tokenizer = SentencepiecesTokenizer(
             bpemodel=os.path.join(
-                "./models/iic/SenseVoiceSmall",
-                "chn_jpn_yue_eng_ko_spectok.bpe.model"
+                "./models/iic/SenseVoiceSmall", "chn_jpn_yue_eng_ko_spectok.bpe.model"
             )
         )
-        self.labels = [self.tokenizer.sp.IdToPiece(
-            i) for i in range(self.tokenizer.sp.piece_size())]
+        self.labels = [
+            self.tokenizer.sp.IdToPiece(i)
+            for i in range(self.tokenizer.sp.piece_size())
+        ]
         self.special_labels = [
-            label for label in self.labels
+            label
+            for label in self.labels
             if label.startswith("<|") and label.endswith("|>")
         ]
         self.special_token_ids = [
@@ -110,17 +123,24 @@ class Transcriber:
             speech, _ = denoiser(speech, sr)
 
         if sr != 16_000:
-            speech = resample(speech, sr, 16_000,
-                              filter="kaiser_best", parallel=True)
+            speech = resample(speech, sr, 16_000, filter="kaiser_best", parallel=True)
 
         logger.info("Segmenting speech...")
+
+        start_time = time.time()
         vad_segments = self._segment_speech(speech)
+        logger.info("Segmentation took %.2f seconds", time.time() - start_time)
 
         if not vad_segments:
             return []
 
+        start_time = time.time()
         results = self._process_segments(speech, vad_segments)
+        logger.info("Processing segments took %.2f seconds", time.time() - start_time)
+
+        start_time = time.time()
         results = self._convert_to_traditional_chinese(results)
+        logger.info("Conversion took %.2f seconds", time.time() - start_time)
 
         return results
 
@@ -130,27 +150,23 @@ class Transcriber:
         return res[0]
 
     def _process_segments(
-        self,
-        speech: np.ndarray,
-        vad_segments: List
+        self, speech: np.ndarray, vad_segments: List
     ) -> List[TranscribeResult]:
         """Process each speech segment"""
         speech_lengths = len(speech)
         results = []
 
         for j, _ in tqdm(
-            enumerate(vad_segments),
-            total=len(vad_segments),
-            desc="Transcribing"
+            enumerate(vad_segments), total=len(vad_segments), desc="Transcribing"
         ):
             speech_j, _ = self._slice_padding_audio_samples(
-                speech,
-                speech_lengths,
-                [[vad_segments[j]]]
+                speech, speech_lengths, [[vad_segments[j]]]
             )
 
             stt_results = self._asr(speech_j[0])
-            timestamp_offset = ((vad_segments[j][0] * 16) / 16_000) - 0.1
+            timestamp_offset = (
+                (vad_segments[j][0] * 16) / 16_000
+            ) + self.offset_in_seconds
 
             if not stt_results:
                 continue
@@ -164,8 +180,7 @@ class Transcriber:
         return results
 
     def _convert_to_traditional_chinese(
-        self,
-        results: List[TranscribeResult]
+        self, results: List[TranscribeResult]
     ) -> List[TranscribeResult]:
         """Convert simplified Chinese to traditional Chinese"""
         if not results:
@@ -174,9 +189,7 @@ class Transcriber:
         corrector = Corrector(self.corrector)
         if self.corrector == "bert":
             for result in tqdm(
-                results,
-                total=len(results),
-                desc="Converting to Traditional Chinese"
+                results, total=len(results), desc="Converting to Traditional Chinese"
             ):
                 result.text = corrector.correct(result.text)
         elif self.corrector == "opencc":
@@ -196,10 +209,7 @@ class Transcriber:
         return results
 
     def _slice_padding_audio_samples(
-        self,
-        speech: np.ndarray,
-        speech_lengths: int,
-        vad_segments: List
+        self, speech: np.ndarray, speech_lengths: int, vad_segments: List
     ) -> tuple:
         """Slice and pad audio samples based on VAD segments"""
         speech_list = []
@@ -234,13 +244,11 @@ class Transcriber:
         language_input = language
         textnorm_input = textnorm
         language_list, textnorm_list = self.asr_model.read_tags(
-            language_input,
-            textnorm_input
+            language_input, textnorm_input
         )
 
         waveform = self.asr_model.load_data(
-            wav_content,
-            self.asr_model.frontend.opts.frame_opts.samp_freq
+            wav_content, self.asr_model.frontend.opts.frame_opts.samp_freq
         )
         feats, feats_len = self.asr_model.extract_feat(waveform)
 
