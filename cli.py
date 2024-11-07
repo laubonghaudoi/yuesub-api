@@ -5,7 +5,7 @@ from pathlib import Path
 
 from utils import to_srt
 
-from transcriber import StreamTranscriber, Transcriber
+from transcriber import StreamTranscriber, Transcriber, AutoTranscriber
 
 # Configure logging first, before any imports
 logging.basicConfig(
@@ -67,6 +67,12 @@ def main():
         help="Output directory for SRT files",
     )
     parser.add_argument(
+        "--onnx",
+        help="Use ONNX runtime for inference",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
         "--stream",
         help="Streaming the transcription preview while processing",
         action="store_true",
@@ -85,8 +91,8 @@ def main():
 
     args = parser.parse_args()
 
-    transcriber_class = [StreamTranscriber, Transcriber][
-        0 if args.stream == True else 1
+    transcriber_class = [StreamTranscriber, AutoTranscriber, Transcriber][
+        0 if args.stream == True else 1 if args.onnx == True else 2
     ]
 
     try:
