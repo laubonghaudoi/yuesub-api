@@ -23,6 +23,7 @@ All model are exporting as ONNX format.
 ## Prerequisites
 
 ```bash
+sudo apt install ffmpeg
 pip install -r requirements.txt
 ```
 
@@ -59,6 +60,7 @@ $ python app.py
 將本 repo clone 落本地後，跑下面嘅命令嚟安裝依賴，然後下載必需嘅模型：
 
 ```bash
+sudo apt install ffmpeg
 pip install -r requirements.txt
 python download_models.py
 ```
