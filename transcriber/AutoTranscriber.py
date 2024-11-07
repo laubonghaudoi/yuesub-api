@@ -1,5 +1,5 @@
 import logging
-import re
+import time
 from typing import List, Literal
 
 import librosa
@@ -20,11 +20,19 @@ class AutoTranscriber:
     Transcriber class that uses FunASR's AutoModel for VAD and ASR
     """
 
-    def __init__(self, corrector: Literal["opencc", "bert", None] = None, use_denoiser=False, with_punct=True, sr=16000):
+    def __init__(
+        self,
+        corrector: Literal["opencc", "bert", None] = None,
+        use_denoiser=False,
+        with_punct=True,
+        offset_in_seconds=-0.25,
+        sr=16000,
+    ):
         self.corrector = corrector
         self.use_denoiser = use_denoiser
         self.with_punct = with_punct
         self.sr = sr
+        self.offset_in_seconds = offset_in_seconds
 
         # Initialize models
         self.vad_model = AutoModel(model="fsmn-vad")
@@ -32,7 +40,7 @@ class AutoTranscriber:
             model="iic/SenseVoiceSmall",
             vad_model=None,  # We'll handle VAD separately
             punc_model="ct-punc" if with_punct else None,
-            ban_emo_unks=True
+            ban_emo_unks=True,
         )
 
     def transcribe(
@@ -56,12 +64,15 @@ class AutoTranscriber:
             speech, _ = denoiser(speech, sr)
 
         if sr != 16_000:
-            speech = resample(speech, sr, 16_000,
-                              filter="kaiser_best", parallel=True)
+            speech = resample(speech, sr, 16_000, filter="kaiser_best", parallel=True)
 
         # Get VAD segments
         logger.info("Segmenting speech...")
+
+        start_time = time.time()
         vad_results = self.vad_model.generate(input=speech)
+        logger.info("VAD took %.2f seconds", time.time() - start_time)
+
         if not vad_results or not vad_results[0]["value"]:
             return []
 
@@ -69,6 +80,8 @@ class AutoTranscriber:
 
         # Process each segment
         results = []
+
+        start_time = time.time()
         for segment in tqdm(vad_segments, desc="Transcribing"):
             start_sample = int(segment[0] * 16)  # Convert ms to samples
             end_sample = int(segment[1] * 16)
@@ -76,26 +89,34 @@ class AutoTranscriber:
 
             # Get ASR results for segment
             asr_result = self.asr_model.generate(
-                input=segment_audio, language="yue", use_itn=True)
+                input=segment_audio, language="yue", use_itn=True
+            )
+
             if not asr_result:
                 continue
+
+            start_time = max(0, segment[0] / 1000.0 + self.offset_in_seconds)
+            end_time = segment[1] / 1000.0 + self.offset_in_seconds
 
             # Convert ASR result to TranscribeResult format
             segment_result = TranscribeResult(
                 text=asr_result[0]["text"],
-                start_time=segment[0] / 1000.0,  # Convert ms to seconds
-                end_time=segment[1] / 1000.0
+                start_time=start_time,  # Convert ms to seconds
+                end_time=end_time,
             )
             results.append(segment_result)
 
+        logger.info("ASR took %.2f seconds", time.time() - start_time)
+
         # Apply Chinese conversion if needed
+        start_time = time.time()
         results = self._convert_to_traditional_chinese(results)
+        logger.info("Conversion took %.2f seconds", time.time() - start_time)
 
         return results
 
     def _convert_to_traditional_chinese(
-        self,
-        results: List[TranscribeResult]
+        self, results: List[TranscribeResult]
     ) -> List[TranscribeResult]:
         """Convert simplified Chinese to traditional Chinese"""
         if not results or not self.corrector:
@@ -104,9 +125,7 @@ class AutoTranscriber:
         corrector = Corrector(self.corrector)
         if self.corrector == "bert":
             for result in tqdm(
-                results,
-                total=len(results),
-                desc="Converting to Traditional Chinese"
+                results, total=len(results), desc="Converting to Traditional Chinese"
             ):
                 result.text = corrector.correct(result.text)
         elif self.corrector == "opencc":

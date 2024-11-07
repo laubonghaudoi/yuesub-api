@@ -136,7 +136,7 @@ class OnnxTranscriber:
 
         start_time = time.time()
         results = self._process_segments(speech, vad_segments)
-        logger.info("Processing segments took %.2f seconds", time.time() - start_time)
+        logger.info("ASR took %.2f seconds", time.time() - start_time)
 
         start_time = time.time()
         results = self._convert_to_traditional_chinese(results)

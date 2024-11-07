@@ -67,8 +67,8 @@ def main():
         help="Output directory for SRT files",
     )
     parser.add_argument(
-        "--onnx",
-        help="Use ONNX runtime for inference",
+        "--funasr",
+        help="Use FunASR",
         action="store_true",
         default=False,
     )
@@ -91,8 +91,8 @@ def main():
 
     args = parser.parse_args()
 
-    transcriber_class = [StreamTranscriber, OnnxTranscriber, AutoTranscriber][
-        0 if args.stream == True else 1 if args.onnx == True else 2
+    transcriber_class = [StreamTranscriber, AutoTranscriber, OnnxTranscriber][
+        0 if args.stream == True else 1 if args.funasr == True else 2
     ]
 
     try:
