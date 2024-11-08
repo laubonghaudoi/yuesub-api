@@ -64,7 +64,8 @@ class AutoTranscriber:
             speech, _ = denoiser(speech, sr)
 
         if sr != 16_000:
-            speech = resample(speech, sr, 16_000, filter="kaiser_best", parallel=True)
+            speech = resample(speech, sr, 16_000,
+                              filter="kaiser_best", parallel=True)
 
         # Get VAD segments
         logger.info("Segmenting speech...")
