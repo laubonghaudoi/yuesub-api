@@ -55,7 +55,7 @@ def save_transcription(srt_text: str, audio_file: str, output_dir: str):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Transcribe audio to SRT subtitles")
+        description="Transcribe Cantonese audio to SRT subtitles")
     parser.add_argument("input_path", type=str,
                         help="Path to audio file or directory")
     parser.add_argument(
@@ -71,8 +71,8 @@ def main():
         help="Output directory for SRT files",
     )
     parser.add_argument(
-        "--funasr",
-        help="Use FunASR",
+        "--onnx",
+        help="Use ONNX runtime for transcription",
         action="store_true",
         default=False,
     )
@@ -96,7 +96,7 @@ def main():
     args = parser.parse_args()
 
     transcriber_class = [StreamTranscriber, AutoTranscriber, OnnxTranscriber][
-        0 if args.stream == True else 1 if args.funasr == True else 2
+        0 if args.stream == True else 2 if args.onnx == True else 1
     ]
 
     try:
