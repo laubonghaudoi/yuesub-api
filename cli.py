@@ -93,6 +93,9 @@ def main():
         "--verbose", help="Increase output verbosity", action="store_true", default=True
     )
 
+    parser.add_argument(
+        "--offset_in_seconds", help="Offset in seconds to adjust the start time of the transcription", type=float, default=-0.25
+    )
     args = parser.parse_args()
 
     transcriber_class = [StreamTranscriber, AutoTranscriber, OnnxTranscriber][
@@ -105,7 +108,7 @@ def main():
 
         # Initialize transcriber once for all files
         transcriber = transcriber_class(
-            corrector="opencc", use_denoiser=args.denoise, with_punct=args.punct
+            corrector="opencc", use_denoiser=args.denoise, with_punct=args.punct, offset_in_seconds=args.offset_in_seconds
         )
 
         input_path = Path(args.input_path)
