@@ -3,13 +3,19 @@ from itertools import product
 
 import opencc
 import pandas as pd
+from typing import Literal
 import re
 
 from .BertModel import BertModel
 
 
 class Corrector:
-    def __init__(self, corrector: str):
+    """
+    SenseVoice model ouputs Simplified Chinese only, this class converts the output to Traditional Chinese
+    and fix common Cantonese spelling errors.
+    """
+
+    def __init__(self, corrector: Literal["opencc", "bert"] = "opencc"):
         self.corrector = corrector
         self.converter = None
         self.bert_model = None
@@ -20,7 +26,7 @@ class Corrector:
                 (re.compile(r"俾(?!(?:路支|斯麥|益))"), r"畀"),
                 (re.compile(r"(?<!(?:聯))[系繫](?!(?:統))"), r"係"),
                 (re.compile(r"噶"), r"㗎"),
-                (re.compile(r"咁(?=[我你佢就樣就話係啊呀，。])"), r"噉"),
+                (re.compile(r"咁(?=[我你佢就樣就話係啊呀嘅，。])"), r"噉"),
                 (re.compile(r"(?<![曝晾])曬(?:[衣太衫褲被命嘢相])"), r"晒"),
                 (re.compile(r"(?<=[好])翻(?=[去到嚟])"), r"返"),
                 (re.compile(r"<\|\w+\|>"), r""),
@@ -40,9 +46,9 @@ class Corrector:
         """Load Jyutping dictionary, character frequency dictionary, and traditional to simplified mapping.
 
         Args:
-            t2s_dict_file (str): Path to the traditional to simplified mapping file.
-            jyutping_dict_file (str): Path to the Jyutping dictionary file.
-            chars_freq_dict_file (str): Path to the character frequency database file.
+            t2s_dict_file(str): Path to the traditional to simplified mapping file.
+            jyutping_dict_file(str): Path to the Jyutping dictionary file.
+            chars_freq_dict_file(str): Path to the character frequency database file.
 
         Returns:
             tuple:

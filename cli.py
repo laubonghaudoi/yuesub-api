@@ -23,6 +23,8 @@ MODEL_DIRS = [
     "models/denoiser.onnx",
 ]
 
+SUPPORTED_FORMATS = [".wav", ".mp3", ".flac", ".m4a", ".ogg", ".opus", ".webm"]
+
 
 def check_models():
     """Check if all required models are downloaded"""
@@ -52,8 +54,10 @@ def save_transcription(srt_text: str, audio_file: str, output_dir: str):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Transcribe audio to SRT subtitles")
-    parser.add_argument("audio_file", type=str, help="Path to audio file")
+    parser = argparse.ArgumentParser(
+        description="Transcribe Cantonese audio to SRT subtitles")
+    parser.add_argument("input_path", type=str,
+                        help="Path to audio file or directory")
     parser.add_argument(
         "--punct", help="Whether to keep punctuation", action="store_true"
     )
@@ -67,8 +71,8 @@ def main():
         help="Output directory for SRT files",
     )
     parser.add_argument(
-        "--funasr",
-        help="Use FunASR",
+        "--onnx",
+        help="Use ONNX runtime for transcription",
         action="store_true",
         default=False,
     )
@@ -92,30 +96,55 @@ def main():
     args = parser.parse_args()
 
     transcriber_class = [StreamTranscriber, AutoTranscriber, OnnxTranscriber][
-        0 if args.stream == True else 1 if args.funasr == True else 2
+        0 if args.stream == True else 2 if args.onnx == True else 1
     ]
 
     try:
         logger.info("Checking models")
         check_models()
 
-        logger.info("Transcribing %s", args.audio_file)
-
+        # Initialize transcriber once for all files
         transcriber = transcriber_class(
             corrector="opencc", use_denoiser=args.denoise, with_punct=args.punct
         )
 
-        transcribe_results = transcriber.transcribe(args.audio_file)
+        input_path = Path(args.input_path)
 
-        if not transcribe_results:
-            logger.error("No transcriptions found")
-            return
+        if input_path.is_file():
+            # Single file mode
+            audio_files = [str(input_path)]
+        else:
+            # Directory mode
+            audio_files = [
+                str(f) for f in input_path.glob("*")
+                if f.suffix.lower() in SUPPORTED_FORMATS
+            ]
+            if not audio_files:
+                logger.error(
+                    "No audio files found in directory: %s", input_path)
+                return
+            logger.info("Found %d audio files to process", len(audio_files))
 
-        srt_text = to_srt(transcribe_results)
-        save_transcription(srt_text, args.audio_file, args.output_dir)
+        # Process each audio file
+        for audio_file in audio_files:
+            try:
+                logger.info("Transcribing %s", audio_file)
+                transcribe_results = transcriber.transcribe(audio_file)
+
+                if not transcribe_results:
+                    logger.warning(
+                        "No transcriptions found for %s", audio_file)
+                    continue
+
+                srt_text = to_srt(transcribe_results)
+                save_transcription(srt_text, audio_file, args.output_dir)
+
+            except Exception as e:
+                logger.error("Error transcribing %s: %s", audio_file, str(e))
+                continue
 
     except Exception as e:
-        logger.error("Error during transcription: %s", str(e))
+        logger.error("Error during initialization: %s", str(e))
         raise
 
 
