@@ -8,38 +8,29 @@ from funasr import AutoModel
 from resampy.core import resample
 from tqdm.auto import tqdm
 
-from corrector.Corrector import Corrector
 from denoiser import denoiser
-from transcriber.TranscribeResult import TranscribeResult
+from transcriber.Transcriber import Transcriber, TranscribeResult
 
 logger = logging.getLogger(__name__)
 
 
-class AutoTranscriber:
+class AutoTranscriber(Transcriber):
     """
     Transcriber class that uses FunASR's AutoModel for VAD and ASR
     """
 
-    def __init__(
-        self,
-        corrector: Literal["opencc", "bert", None] = None,
-        use_denoiser=False,
-        with_punct=True,
-        offset_in_seconds=-0.25,
-        sr=16000,
-    ):
-        self.corrector = corrector
-        self.use_denoiser = use_denoiser
-        self.with_punct = with_punct
-        self.sr = sr
-        self.offset_in_seconds = offset_in_seconds
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
         # Initialize models
-        self.vad_model = AutoModel(model="fsmn-vad")
+        self.vad_model = AutoModel(
+            model="fsmn-vad",
+            max_single_segment_time=self.max_length_seconds * 1000,
+        )
         self.asr_model = AutoModel(
             model="iic/SenseVoiceSmall",
             vad_model=None,  # We'll handle VAD separately
-            punc_model="ct-punc" if with_punct else None,
+            punc_model="ct-punc" if self.with_punct else None,
             ban_emo_unks=True,
         )
 
@@ -70,7 +61,7 @@ class AutoTranscriber:
         logger.info("Segmenting speech...")
 
         start_time = time.time()
-        vad_results = self.vad_model.generate(input=speech)
+        vad_results = self.vad_model.generate(input=speech, disable_pbar=True)
         logger.info("VAD took %.2f seconds", time.time() - start_time)
 
         if not vad_results or not vad_results[0]["value"]:
@@ -89,7 +80,7 @@ class AutoTranscriber:
 
             # Get ASR results for segment
             asr_result = self.asr_model.generate(
-                input=segment_audio, language="yue", use_itn=True
+                input=segment_audio, language="yue", use_itn=True, disable_pbar=True
             )
 
             if not asr_result:
@@ -110,36 +101,7 @@ class AutoTranscriber:
 
         # Apply Chinese conversion if needed
         start_time = time.time()
-        results = self._convert_to_traditional_chinese(results)
+        results = self._postprocessing(results)
         logger.info("Conversion took %.2f seconds", time.time() - start_time)
-
-        return results
-
-    def _convert_to_traditional_chinese(
-        self, results: List[TranscribeResult]
-    ) -> List[TranscribeResult]:
-        """Convert simplified Chinese to traditional Chinese"""
-        if not results or not self.corrector:
-            return results
-
-        corrector = Corrector(self.corrector)
-        if self.corrector == "bert":
-            for result in tqdm(
-                results, total=len(results), desc="Converting to Traditional Chinese"
-            ):
-                result.text = corrector.correct(result.text)
-        elif self.corrector == "opencc":
-            # Use a special delimiter that won't appear in Chinese text
-            delimiter = "|||"
-            # Concatenate all texts with delimiter
-            combined_text = delimiter.join(result.text for result in results)
-            # Convert all text at once
-            converted_text = corrector.correct(combined_text)
-            # Split back into individual results
-            converted_parts = converted_text.split(delimiter)
-
-            # Update results with converted text
-            for result, converted in zip(results, converted_parts):
-                result.text = converted
 
         return results

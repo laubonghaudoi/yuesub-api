@@ -16,12 +16,12 @@ from tqdm.auto import tqdm
 
 from corrector.Corrector import Corrector
 from denoiser import denoiser
-from transcriber.TranscribeResult import TranscribeResult
+from transcriber.Transcriber import Transcriber, TranscribeResult
 
 logger = logging.getLogger(__name__)
 
 
-class OnnxTranscriber:
+class OnnxTranscriber(Transcriber):
     """
     Onnx runtime Transcriber class
 
@@ -29,18 +29,11 @@ class OnnxTranscriber:
 
     def __init__(
         self,
-        corrector: Literal["opencc", "bert", None] = None,
-        use_denoiser=False,
-        with_punct=True,
-        offset_in_seconds=-0.25,
-        sr=16000,
+        **kwargs,
     ):
-        self.corrector = corrector
-        self.use_denoiser = use_denoiser
-        self.with_punct = with_punct
-        self.sr = sr
-        self.offset_in_seconds = offset_in_seconds
-
+        super().__init__(
+            **kwargs,
+        )
         self._setup_device()
         self._load_models()
         self._load_tokenizer()
@@ -74,7 +67,12 @@ class OnnxTranscriber:
             "./models/iic/speech_fsmn_vad_zh-cn-16k-common-pytorch",
             batch_size=1,
             quantize=True,
+            max_single_segment_time=self.max_length_seconds * 1000,
             providers=self.providers,
+        )
+
+        self.vad_model.vad_scorer.vad_opts.max_single_segment_time = (
+            self.max_length_seconds * 1000
         )
 
     def _load_tokenizer(self):
@@ -139,7 +137,7 @@ class OnnxTranscriber:
         logger.info("ASR took %.2f seconds", time.time() - start_time)
 
         start_time = time.time()
-        results = self._convert_to_traditional_chinese(results)
+        results = self._postprocessing(results)
         logger.info("Conversion took %.2f seconds", time.time() - start_time)
 
         return results
@@ -176,35 +174,6 @@ class OnnxTranscriber:
                 result.end_time += timestamp_offset
 
             results.extend(stt_results)
-
-        return results
-
-    def _convert_to_traditional_chinese(
-        self, results: List[TranscribeResult]
-    ) -> List[TranscribeResult]:
-        """Convert simplified Chinese to traditional Chinese"""
-        if not results:
-            return results
-
-        corrector = Corrector(self.corrector)
-        if self.corrector == "bert":
-            for result in tqdm(
-                results, total=len(results), desc="Converting to Traditional Chinese"
-            ):
-                result.text = corrector.correct(result.text)
-        elif self.corrector == "opencc":
-            # Use a special delimiter that won't appear in Chinese text
-            delimiter = "|||"
-            # Concatenate all texts with delimiter
-            combined_text = delimiter.join(result.text for result in results)
-            # Convert all text at once
-            converted_text = corrector.correct(combined_text)
-            # Split back into individual results
-            converted_parts = converted_text.split(delimiter)
-
-            # Update results with converted text
-            for result, converted in zip(results, converted_parts):
-                result.text = converted
 
         return results
 

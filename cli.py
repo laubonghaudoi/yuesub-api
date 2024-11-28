@@ -55,7 +55,10 @@ def main():
     parser = argparse.ArgumentParser(description="Transcribe audio to SRT subtitles")
     parser.add_argument("audio_file", type=str, help="Path to audio file")
     parser.add_argument(
-        "--punct", help="Whether to keep punctuation", action="store_true"
+        "--punct",
+        help="Whether to keep punctuation",
+        action="store_true",
+        default=False,
     )
     parser.add_argument(
         "--denoise", help="Whether to denoise the audio", action="store_true"
@@ -86,10 +89,19 @@ def main():
         choices=["opencc", "bert"],
     )
     parser.add_argument(
+        "--max-length",
+        type=float,
+        default=3.0,
+        help="Maximum length of each segment in seconds",
+    )
+    parser.add_argument(
         "--verbose", help="Increase output verbosity", action="store_true", default=True
     )
 
     args = parser.parse_args()
+
+    if args.stream == True and args.funasr == True:
+        raise ValueError("Cannot use both stream and funasr")
 
     transcriber_class = [StreamTranscriber, AutoTranscriber, OnnxTranscriber][
         0 if args.stream == True else 1 if args.funasr == True else 2
@@ -102,7 +114,10 @@ def main():
         logger.info("Transcribing %s", args.audio_file)
 
         transcriber = transcriber_class(
-            corrector="opencc", use_denoiser=args.denoise, with_punct=args.punct
+            corrector="opencc",
+            use_denoiser=args.denoise,
+            with_punct=args.punct,
+            max_length_seconds=args.max_length,
         )
 
         transcribe_results = transcriber.transcribe(args.audio_file)
