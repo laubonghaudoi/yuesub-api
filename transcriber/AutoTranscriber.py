@@ -30,7 +30,7 @@ class AutoTranscriber(Transcriber):
         self.asr_model = AutoModel(
             model="iic/SenseVoiceSmall",
             vad_model=None,  # We'll handle VAD separately
-            punc_model="ct-punc" if self.with_punct else None,
+            punc_model=None,
             ban_emo_unks=True,
         )
 
@@ -81,7 +81,7 @@ class AutoTranscriber(Transcriber):
 
             # Get ASR results for segment
             asr_result = self.asr_model.generate(
-                input=segment_audio, language="yue", use_itn=True, disable_pbar=True
+                input=segment_audio, language="yue", use_itn=self.with_punct, disable_pbar=True
             )
 
             if not asr_result:
