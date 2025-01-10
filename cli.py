@@ -55,11 +55,14 @@ def save_transcription(srt_text: str, audio_file: str, output_dir: str):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Transcribe Cantonese audio to SRT subtitles")
-    parser.add_argument("input_path", type=str,
-                        help="Path to audio file or directory")
+        description="Transcribe Cantonese audio to SRT subtitles"
+    )
+    parser.add_argument("input_path", type=str, help="Path to audio file or directory")
     parser.add_argument(
-        "--punct", help="Whether to keep punctuation", action="store_true"
+        "--punct",
+        help="Whether to keep punctuation",
+        action="store_true",
+        default=False,
     )
     parser.add_argument(
         "--denoise", help="Whether to denoise the audio", action="store_true"
@@ -90,10 +93,25 @@ def main():
         choices=["opencc", "bert"],
     )
     parser.add_argument(
+        "--max-length",
+        type=float,
+        default=3.0,
+        help="Maximum length of each segment in seconds",
+    )
+    parser.add_argument(
         "--verbose", help="Increase output verbosity", action="store_true", default=True
     )
 
+    parser.add_argument(
+        "--offset_in_seconds",
+        help="Offset in seconds to adjust the start time of the transcription",
+        type=float,
+        default=-0.25,
+    )
     args = parser.parse_args()
+
+    if args.stream == True and args.funasr == True:
+        raise ValueError("Cannot use both stream and funasr")
 
     transcriber_class = [StreamTranscriber, AutoTranscriber, OnnxTranscriber][
         0 if args.stream == True else 2 if args.onnx == True else 1
@@ -106,7 +124,11 @@ def main():
 
         # Initialize transcriber once for all files
         transcriber = transcriber_class(
-            corrector="opencc", use_denoiser=args.denoise, with_punct=args.punct
+            corrector="opencc",
+            use_denoiser=args.denoise,
+            with_punct=args.punct,
+            offset_in_seconds=args.offset_in_seconds,
+            max_length_seconds=args.max_length,
         )
 
         input_path = Path(args.input_path)
@@ -117,12 +139,12 @@ def main():
         else:
             # Directory mode
             audio_files = [
-                str(f) for f in input_path.glob("*")
+                str(f)
+                for f in input_path.glob("*")
                 if f.suffix.lower() in SUPPORTED_FORMATS
             ]
             if not audio_files:
-                logger.error(
-                    "No audio files found in directory: %s", input_path)
+                logger.error("No audio files found in directory: %s", input_path)
                 return
             logger.info("Found %d audio files to process", len(audio_files))
 
@@ -133,8 +155,7 @@ def main():
                 transcribe_results = transcriber.transcribe(audio_file)
 
                 if not transcribe_results:
-                    logger.warning(
-                        "No transcriptions found for %s", audio_file)
+                    logger.warning("No transcriptions found for %s", audio_file)
                     continue
 
                 srt_text = to_srt(transcribe_results)

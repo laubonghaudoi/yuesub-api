@@ -27,3 +27,6 @@ Replace Bert to OpenCC as corrector, thanks @laubonghaudoi
 
 - Add StreamTranscriber for preview transcription while processing
 - Add FunASR library
+
+### [1.0.7] - 2024-11-14
+- Add maximum length for segmentation
