@@ -118,8 +118,9 @@ def main():
     ]
 
     try:
-        logger.info("Checking models")
-        check_models()
+        if transcriber_class == OnnxTranscriber: 
+            logger.info("Checking models")
+            check_models()
 
         # Initialize transcriber once for all files
         transcriber = transcriber_class(
