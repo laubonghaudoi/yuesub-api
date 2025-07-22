@@ -85,14 +85,14 @@ class AutoTranscriber(Transcriber):
 
             if not asr_result:
                 continue
-            start_time = max(0, segment['start'] / 16_000.0 + self.offset_in_seconds)
-            end_time = segment['end'] / 16_000.0  + self.offset_in_seconds
+            start_segment_time = max(0, segment['start'] / 16_000.0 + self.offset_in_seconds)
+            end_segment_time = segment['end'] / 16_000.0  + self.offset_in_seconds
 
             # Convert ASR result to TranscribeResult format
             segment_result = TranscribeResult(
                 text=asr_result[0]["text"],
-                start_time=start_time,  # Convert ms to seconds
-                end_time=end_time,
+                start_time=start_segment_time,  # Convert ms to seconds
+                end_time=end_segment_time,
             )
             results.append(segment_result)
 
