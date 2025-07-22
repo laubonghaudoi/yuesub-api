@@ -28,7 +28,7 @@ class Transcriber:
         use_denoiser=False,
         with_punct=True,
         offset_in_seconds=-0.25,
-        max_length_seconds=5,
+        max_length_seconds=10,
         sr=16000,
     ):
         self.corrector = corrector
