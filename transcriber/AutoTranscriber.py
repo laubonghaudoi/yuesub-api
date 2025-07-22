@@ -64,7 +64,7 @@ class AutoTranscriber(Transcriber):
             speech,
             self.vad_model,
             sampling_rate=16_000,
-            # max_speech_duration_s=self.max_length_seconds,
+            max_speech_duration_s=self.max_length_seconds,
         )
         logger.info("VAD took %.2f seconds", time.time() - start_time)
 
