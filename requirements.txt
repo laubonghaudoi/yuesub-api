@@ -16,3 +16,4 @@ resampy
 torch
 torchaudio
 transformers[onnx]
+silero-vad

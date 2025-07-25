@@ -95,7 +95,7 @@ def main():
     parser.add_argument(
         "--max-length",
         type=float,
-        default=3.0,
+        default=10.0,
         help="Maximum length of each segment in seconds",
     )
     parser.add_argument(
@@ -162,11 +162,11 @@ def main():
                 save_transcription(srt_text, audio_file, args.output_dir)
 
             except Exception as e:
-                logger.error("Error transcribing %s: %s", audio_file, str(e))
+                logger.error("Error transcribing %s: %s", audio_file, e)
                 continue
 
     except Exception as e:
-        logger.error("Error during initialization: %s", str(e))
+        logger.error("Error during initialization: %s", e)
         raise
 
 
