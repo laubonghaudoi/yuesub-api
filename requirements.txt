@@ -2,12 +2,9 @@ OpenCC
 datasets
 flask
 funasr
-funasr_onnx
 librosa
 modelscope
 onnxruntime
-onnxruntime-gpu; sys_platform != 'darwin' and platform_machine != 'arm64' and platform_machine != 'aarch64'
-optimum[onnxruntime]
 psutil
 pysrt
 pytest
@@ -15,5 +12,4 @@ pytubefix
 resampy
 torch
 torchaudio
-transformers[onnx]
 silero-vad

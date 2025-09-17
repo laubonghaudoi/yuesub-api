@@ -6,8 +6,6 @@ import pandas as pd
 from typing import Literal
 import re
 
-from .BertModel import BertModel
-
 
 class Corrector:
     """
@@ -15,27 +13,21 @@ class Corrector:
     and fix common Cantonese spelling errors.
     """
 
-    def __init__(self, corrector: Literal["opencc", "bert"] = "opencc"):
+    def __init__(self, corrector: Literal["opencc"] = "opencc"):
         self.corrector = corrector
         self.converter = None
-        self.bert_model = None
 
-        if corrector == "opencc":
-            self.converter = opencc.OpenCC("s2hk")
-            self.regular_errors: list[tuple[re.Pattern, str]] = [
-                (re.compile(r"俾(?!(?:路支|斯麥|益))"), r"畀"),
-                (re.compile(r"(?<!(?:聯))[系繫](?!(?:統))"), r"係"),
-                (re.compile(r"噶"), r"㗎"),
-                (re.compile(r"咁(?=[我你佢就樣就話係啊呀嘅，。])"), r"噉"),
-                (re.compile(r"(?<![曝晾])曬(?:[衣太衫褲被命嘢相])"), r"晒"),
-                (re.compile(r"(?<=[好])翻(?=[去到嚟])"), r"返"),
-                (re.compile(r"<\|\w+\|>"), r""),
-            ]
-
-        elif corrector == "bert":
-            self.t2s_char_dict, self.char_jyutping_dict, self.jyutping_char_dict,  self.chars_freq = self._load_dict()
-            self.bert_model = BertModel(
-                "./models/hon9kon9ize/bert-large-cantonese")
+        # OpenCC with rule-based fixes is the only supported corrector
+        self.converter = opencc.OpenCC("s2hk")
+        self.regular_errors: list[tuple[re.Pattern, str]] = [
+            (re.compile(r"俾(?!(?:路支|斯麥|益))"), r"畀"),
+            (re.compile(r"(?<!(?:聯))[系繫](?!(?:統))"), r"係"),
+            (re.compile(r"噶"), r"㗎"),
+            (re.compile(r"咁(?=[我你佢就樣就話係啊呀嘅，。])"), r"噉"),
+            (re.compile(r"(?<![曝晾])曬(?:[衣太衫褲被命嘢相])"), r"晒"),
+            (re.compile(r"(?<=[好])翻(?=[去到嚟])"), r"返"),
+            (re.compile(r"<\|\w+\|>"), r""),
+        ]
 
     def _load_dict(
         self,
@@ -100,11 +92,11 @@ class Corrector:
 
     def correct(self, text: str) -> str:
         """
-        Correct the output text using either a language model or OpenCC
+        Correct the output text using OpenCC + rule-based fixes
         Args:
             text: Input text to correct
             t2s_char_dict: Dictionary mapping traditional to simplified characters
-            lm_model: Either 'opencc' or a LanguageModel instance
+            lm_model: Only 'opencc' is supported
         Returns:
             Corrected text string
         """
@@ -114,11 +106,8 @@ class Corrector:
 
         if self.corrector == "opencc":
             return self.opencc_correct(text)
-
-        elif self.corrector == "bert":
-            return self.lm_correct(text)
         else:
-            raise ValueError("corrector should be either 'opencc' or 'bert'")
+            raise ValueError("corrector should be 'opencc'")
 
     def lm_correct(self, text: str) -> str:
         # Get candidates for each character
@@ -135,8 +124,9 @@ class Corrector:
         if not text_candidates:  # Safeguard against empty candidates
             return text
 
-        # Find the candidate with minimum perplexity score
-        return min(text_candidates, key=lambda t: self.bert_model.perplexity(t))
+        # BERT-based scoring removed; return highest-frequency candidate as simple heuristic
+        # (kept for compatibility if needed in future).
+        return text_candidates[0]
 
     def opencc_correct(self, text: str) -> str:
         """

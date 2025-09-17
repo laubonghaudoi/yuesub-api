@@ -24,7 +24,7 @@ class TranscribeResult:
 class Transcriber:
     def __init__(
         self,
-        corrector: Literal["opencc", "bert", None] = None,
+        corrector: Literal["opencc", None] = None,
         use_denoiser=False,
         with_punct=True,
         offset_in_seconds=-0.25,
@@ -53,25 +53,17 @@ class Transcriber:
 
         if self.corrector is not None:
             corrector = Corrector(self.corrector)
-            if self.corrector == "bert":
-                for result in tqdm(
-                    results,
-                    total=len(results),
-                    desc="Converting to Traditional Chinese",
-                ):
-                    result.text = corrector.correct(result.text)
-            elif self.corrector == "opencc":
-                # Use a special delimiter that won't appear in Chinese text
-                delimiter = "|||"
-                # Concatenate all texts with delimiter
-                combined_text = delimiter.join(result.text for result in results)
-                # Convert all text at once
-                converted_text = corrector.correct(combined_text)
-                # Split back into individual results
-                converted_parts = converted_text.split(delimiter)
+            # Use a special delimiter that won't appear in Chinese text
+            delimiter = "|||"
+            # Concatenate all texts with delimiter
+            combined_text = delimiter.join(result.text for result in results)
+            # Convert all text at once
+            converted_text = corrector.correct(combined_text)
+            # Split back into individual results
+            converted_parts = converted_text.split(delimiter)
 
-                # Update results with converted text
-                for result, converted in zip(results, converted_parts):
-                    result.text = converted
+            # Update results with converted text
+            for result, converted in zip(results, converted_parts):
+                result.text = converted
 
         return results

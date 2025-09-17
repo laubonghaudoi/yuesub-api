@@ -5,7 +5,7 @@ from pathlib import Path
 
 from utils import to_srt
 
-from transcriber import StreamTranscriber, OnnxTranscriber, AutoTranscriber
+from transcriber import AutoTranscriber
 
 # Configure logging first, before any imports
 logging.basicConfig(
@@ -17,27 +17,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-MODEL_DIRS = [
-    "models/iic/SenseVoiceSmall",
-    "models/iic/speech_fsmn_vad_zh-cn-16k-common-pytorch",
-    "models/denoiser.onnx",
-]
-
 SUPPORTED_FORMATS = [".wav", ".mp3", ".flac", ".m4a", ".ogg", ".opus", ".webm"]
-
-
-def check_models():
-    """Check if all required models are downloaded"""
-    for model_dir in MODEL_DIRS:
-        if not os.path.exists(model_dir):
-            raise FileNotFoundError(
-                f"Model not found: {model_dir}\n"
-                "Please run `python download_models.py` first"
-            )
-    if not os.path.exists("models/hon9kon9ize/bert-large-cantonese"):
-        logger.info(
-            "models/hon9kon9ize/bert-large-cantonese not found, only OpenCC corrector is available",
-        )
 
 
 def save_transcription(srt_text: str, audio_file: str, output_dir: str):
@@ -73,29 +53,11 @@ def main():
         default="output",
         help="Output directory for SRT files",
     )
-    parser.add_argument(
-        "--onnx",
-        help="Use ONNX runtime for transcription",
-        action="store_true",
-        default=False,
-    )
-    parser.add_argument(
-        "--stream",
-        help="Streaming the transcription preview while processing",
-        action="store_true",
-        default=False,
-    )
-    parser.add_argument(
-        "--corrector",
-        type=str,
-        default="opencc",
-        help="Corrector type: opencc or bert",
-        choices=["opencc", "bert"],
-    )
+    # AutoTranscriber is the only supported transcriber; opencc is always used.
     parser.add_argument(
         "--max-length",
         type=float,
-        default=10.0,
+        default=30.0,
         help="Maximum length of each segment in seconds",
     )
     parser.add_argument(
@@ -110,20 +72,9 @@ def main():
     )
     args = parser.parse_args()
 
-    if args.stream == True and args.funasr == True:
-        raise ValueError("Cannot use both stream and funasr")
-
-    transcriber_class = [StreamTranscriber, AutoTranscriber, OnnxTranscriber][
-        0 if args.stream == True else 2 if args.onnx == True else 1
-    ]
-
     try:
-        if transcriber_class == OnnxTranscriber: 
-            logger.info("Checking models")
-            check_models()
-
         # Initialize transcriber once for all files
-        transcriber = transcriber_class(
+        transcriber = AutoTranscriber(
             corrector="opencc",
             use_denoiser=args.denoise,
             with_punct=args.punct,

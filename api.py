@@ -2,6 +2,7 @@ import json
 import os
 import flask
 import utils
+from transcriber import AutoTranscriber
 
 app = flask.Flask(__name__)
 
@@ -18,7 +19,8 @@ def transcribe():
     if audio_file is None:
         return flask.Response(response="\n", status=400, mimetype="application/json")
 
-    transcribe_results = utils.transcribe(audio_file)
+    transcriber = AutoTranscriber(corrector="opencc", use_denoiser=False, with_punct=False)
+    transcribe_results = transcriber.transcribe(audio_file)
 
     os.remove(audio_file)
 
