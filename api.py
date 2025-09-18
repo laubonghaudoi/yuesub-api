@@ -19,7 +19,14 @@ def transcribe():
     if audio_file is None:
         return flask.Response(response="\n", status=400, mimetype="application/json")
 
-    transcriber = AutoTranscriber(corrector="opencc", use_denoiser=False, with_punct=False)
+    transcriber = AutoTranscriber(
+        corrector="opencc",
+        use_denoiser=False,
+        with_punct=False,
+        offset_in_seconds=0.0,
+        max_length_seconds=30.0,
+        merge_gap_ms=200,
+    )
     transcribe_results = transcriber.transcribe(audio_file)
 
     os.remove(audio_file)

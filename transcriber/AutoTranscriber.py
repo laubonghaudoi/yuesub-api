@@ -21,8 +21,9 @@ class AutoTranscriber(Transcriber):
     Transcriber class that uses FunASR's AutoModel for VAD and ASR
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, merge_gap_ms: int = 200, **kwargs):
         super().__init__(**kwargs)
+        self.merge_gap_ms = max(0, int(merge_gap_ms))
 
         # Initialize models
         self.vad_model = load_silero_vad()
@@ -68,6 +69,8 @@ class AutoTranscriber(Transcriber):
             sampling_rate=16_000,
             max_speech_duration_s=self.max_length_seconds,
         )
+        if self.merge_gap_ms > 0:
+            vad_results = self._merge_vad_segments(vad_results, sr=16_000)
         logger.info("VAD took %.2f seconds", time.time() - start_time)
 
         if not vad_results:
@@ -106,3 +109,32 @@ class AutoTranscriber(Transcriber):
         logger.info("Conversion took %.2f seconds", time.time() - start_time)
 
         return results
+
+    def _merge_vad_segments(self, segments: List[dict], sr: int = 16_000) -> List[dict]:
+        """
+        Merge adjacent VAD segments when the gap between them is shorter than
+        `merge_gap_ms` and the merged segment does not exceed `max_length_seconds`.
+        Silero returns sample indices for start/end.
+        """
+        if not segments:
+            return segments
+
+        gap_samples = int(self.merge_gap_ms * sr / 1000)
+        max_len_samples = int(self.max_length_seconds * sr)
+
+        merged = []
+        current = dict(segments[0])
+
+        for nxt in segments[1:]:
+            gap = nxt["start"] - current["end"]
+            merged_len = nxt["end"] - current["start"]
+
+            if gap <= gap_samples and merged_len <= max_len_samples:
+                # Extend current segment
+                current["end"] = nxt["end"]
+            else:
+                merged.append(current)
+                current = dict(nxt)
+
+        merged.append(current)
+        return merged

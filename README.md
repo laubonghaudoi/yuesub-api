@@ -79,12 +79,12 @@ yt-dlp -f ba https://youtu.be/rIBD6
 
 ### Transcribe
 
-Run the CLI (OpenCC corrector is enabled by default).
+Run the CLI (OpenCC corrector is enabled by default). You can increase context and merge small pauses for better quality.
 
 single file transcription can be run directly
 
 ```bash
-$ python cli.py your_audio.mp3 --output-dir output
+$ python cli.py your_audio.mp3 --output-dir output --max-length 30 --merge-gap-ms 200
 ```
 
 or in batch

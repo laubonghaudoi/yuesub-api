@@ -42,7 +42,7 @@ def main():
         "--punct",
         help="Whether to keep punctuation",
         action="store_true",
-        default=False,
+        default=True,
     )
     parser.add_argument(
         "--denoise", help="Whether to denoise the audio", action="store_true"
@@ -61,6 +61,12 @@ def main():
         help="Maximum length of each segment in seconds",
     )
     parser.add_argument(
+        "--merge-gap-ms",
+        type=int,
+        default=200,
+        help="Merge adjacent VAD segments if the pause is shorter than this many milliseconds (0 to disable)",
+    )
+    parser.add_argument(
         "--verbose", help="Increase output verbosity", action="store_true", default=True
     )
 
@@ -68,7 +74,7 @@ def main():
         "--offset_in_seconds",
         help="Offset in seconds to adjust the start time of the transcription",
         type=float,
-        default=-0.25,
+        default=0,
     )
     args = parser.parse_args()
 
@@ -80,6 +86,7 @@ def main():
             with_punct=args.punct,
             offset_in_seconds=args.offset_in_seconds,
             max_length_seconds=args.max_length,
+            merge_gap_ms=args.merge_gap_ms,
         )
 
         input_path = Path(args.input_path)

@@ -21,7 +21,10 @@ def transcribe_audio(audio_path):
         transcriber = AutoTranscriber(
             corrector="opencc",
             use_denoiser=False,
-            with_punct=False
+            with_punct=False,
+            offset_in_seconds=0.0,
+            max_length_seconds=30.0,
+            merge_gap_ms=200,
         )
 
         transcribe_results = transcriber.transcribe(audio_path)
